@@ -1,0 +1,68 @@
+{
+  "variables": [
+    {
+      "key": "baseUrl",
+      "value": "https://api.example.com",
+      "type": "string"
+    },
+    {
+      "key": "authToken",
+      "value": "your_auth_token_here",
+      "type": "string"
+    }
+  ],
+  "info": {
+    "name": "Sample API Collection",
+    "description": "A collection demonstrating API requests with variables and request information.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Get User Info",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{authToken}}",
+            "description": "Authorization token"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/user/info",
+          "host": ["{{baseUrl}}"],
+          "path": ["user", "info"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Create User",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "description": "Content type"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{authToken}}",
+            "description": "Authorization token"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"name\": \"John Doe\", \"email\": \"john.doe@example.com\"}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/user/create",
+          "host": ["{{baseUrl}}"],
+          "path": ["user", "create"]
+        }
+      },
+      "response": []
+    }
+  ]
+}

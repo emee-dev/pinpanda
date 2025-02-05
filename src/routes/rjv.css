@@ -1,0 +1,11 @@
+span.object-key > span {
+  /* background: var(--object-key); */
+  color: var(--rjv_object_key);
+}
+
+/* Styles the open & close brackets */
+div.object-key-val > span span:nth-child(3),
+span.brace-row > span {
+  /* background: red !important; */
+  color: var(--rjv_object_key) !important;
+}

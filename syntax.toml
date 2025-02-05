@@ -1,0 +1,117 @@
+# Environment Variables
+# [env]
+# base_url = "https://api.example.com"
+# auth_token = "Bearer your_auth_token"
+
+# HTTP Request Definition
+[get]
+name = "Get User Info"
+url = "{base_url}/users/{user_id}"
+
+[get.params]
+user_id = 12345
+
+[get.query] 
+id = "emee"
+page = 10
+limit = 30
+
+[get.headers]
+Authorization = "{auth_token}"
+Accept = "application/json"
+
+# V1 A bit boilerplaty
+# [get.body]
+# type = "json"
+# content = """
+# {
+#   "title": "New Post",
+#   "content": "This is the content of the new post.",
+#   "tags": ["example", "post"]
+# }
+# """
+
+# [get.body]
+# type = "form-data"
+# content = [
+# # Under the hood, we try to read the value as a file, and if it fails, return as a string.
+#     { field = "file", value = "./path/to/file.txt" },
+#     { field = "user_name", value = "jet" }
+# ]
+
+# [get.body]
+# type = "form-urlencoded"
+# content = [
+#     { field = "title", value = "New Post" },
+#     { field = "content", value = "This is the content of the new post." },
+#     { field = "tags", value = "example,post" }
+# ]
+
+# [get.body]
+# type = "xml"
+# content = """
+# <post>
+#   <title>New Post</title>
+#   <content>This is the content of the new post.</content>
+#   <tags>
+#     <tag>example</tag>
+#     <tag>post</tag>
+#   </tags>
+# </post>
+# """
+
+# [get.body]
+# type = "text"
+# content = """
+# title=New Post
+# content=This is the content of the new post.
+# tags=example,post
+# """
+
+
+# V2 Better and concise
+# [get.json]
+# content = """
+# {
+#     "userId": "jae",
+#     "email": "email@gmail.com"
+# }
+# """
+
+# [get.form_data]
+# content = [
+# # Under the hood, we try to read the value as a file, and if it fails, return as a string.
+#     { field = "file", value = "./path/to/file.txt" },
+#     { field = "user_name", value = "jet" }
+# ]
+
+# [get.form_urlencoded]
+# content = [
+#     { field = "title", value = "New Post" },
+#     { field = "content", value = "This is the content of the new post." },
+#     { field = "tags", value = "example,post" }
+# ]
+
+# [get.xml]
+# content = """
+# <post>
+#   <title>New Post</title>
+#   <content>This is the content of the new post.</content>
+#   <tags>
+#     <tag>example</tag>
+#     <tag>post</tag>
+#   </tags>
+# </post>
+# """
+
+[get.text]
+content = """
+This is a request type of body text. Very concise.
+"""
+
+
+[get.pre_request]
+code = """
+console.log("Hello world.");
+outsideFn()
+"""
