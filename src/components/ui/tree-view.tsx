@@ -54,6 +54,7 @@ export const TreeView = ({
   });
 
   const { height = getTotalSize(), width } = useResizeObserver({
+    // @ts-expect-error
     ref: containerRef,
   });
   return (

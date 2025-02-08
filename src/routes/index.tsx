@@ -93,6 +93,12 @@ function Index() {
     setToml(code);
   }, []);
 
+  useEffect(() => {
+    if (window) {
+      console.log(window);
+    }
+  }, [window]);
+
   return (
     <SidebarProvider defaultOpen={false} className="relative">
       <AppSidebar />

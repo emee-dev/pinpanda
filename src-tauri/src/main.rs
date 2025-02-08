@@ -3,5 +3,5 @@
 
 #[tokio::main]
 async fn main() {
-    annie_lib::run().await
+    worm_lib::run().await
 }

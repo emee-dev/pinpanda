@@ -1,7 +1,5 @@
 use reqwest::multipart;
 use reqwest::Method;
-use rustyscript::RuntimeOptions;
-use rustyscript::{json_args, Error, Module, Runtime};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::str::FromStr;
@@ -22,13 +20,9 @@ pub struct RequestResponse {
     headers: Option<HashMap<String, String>>,
 }
 
-// let formbody = [("foo", "bar"), ("ajax", "axios")];
-
-// New toml syntax
 #[derive(Deserialize, Clone, Debug, Serialize)]
 // #[serde(deny_unknown_fields)]
 struct TomlRequest {
-    // Ideally we require only one variant.
     get: Option<RequestParams>,
     head: Option<RequestParams>,
     post: Option<RequestParams>,
@@ -197,16 +191,26 @@ pub async fn cmd_http_request(toml_schema: &str) -> Result<RequestResponse, Stri
 
     let request = match method.to_lowercase().as_str() {
         "get" => {
-            // let url = "https://holidayapi.com/v1/holidays";
-            let query_params = [("key", "api_key"), ("country", "US"), ("year", "2020")];
+            // TODO improve this code.
+            if let Some(query) = params.query {
+                let parse_object = query
+                    .as_object()
+                    .expect("query should be a valid json value keypair");
 
-            match params.query {
-                Some(_) => {
-                    let queried_url = reqwest::Url::parse_with_params(&url, &query_params).unwrap();
+                let mut arr: Vec<(String, String)> = vec![];
 
-                    client.get(queried_url)
+                for item in parse_object {
+                    let key = item.0.to_string();
+                    let value = item.1.to_string();
+
+                    arr.push((key, value));
                 }
-                None => client.get(&url),
+
+                let queried_url = reqwest::Url::parse_with_params(&url, &arr).unwrap();
+
+                client.get(queried_url)
+            } else {
+                client.get(&url)
             }
         }
         "head" => client.head(&url),
@@ -258,7 +262,7 @@ pub async fn cmd_http_request(toml_schema: &str) -> Result<RequestResponse, Stri
 
             let mut reqwest_headers: HeaderMap = HeaderMap::new();
 
-            reqwest_headers.insert("User-Agent", "Worm/v0.1.0".parse().unwrap());
+            reqwest_headers.insert("User-Agent", "Worm".parse().unwrap());
 
             for (key, value) in parse_headers {
                 let string_key = key.to_owned();
@@ -318,29 +322,4 @@ pub async fn cmd_http_request(toml_schema: &str) -> Result<RequestResponse, Stri
 
     // Here we can run post-request scripts
     Ok(after_response)
-}
-
-#[tauri::command(rename_all = "snake_case")]
-pub fn cmd_eval_js(script: &str) -> Result<usize, String> {
-    let module = Module::new(
-        "test.js",
-        "
-    export default (string, integer) => {
-        console.log(`Hello world: string=${string}, integer=${integer}`);
-        return 2;
-    }
-    ",
-    );
-
-    let opts = RuntimeOptions {
-        ..Default::default()
-    };
-
-    let value: Result<usize, Error> =
-        Runtime::execute_module(&module, vec![], opts, json_args!("test", 5));
-
-    match value {
-        Ok(num) => Ok(num),
-        Err(err) => Err(err.to_string()),
-    }
 }

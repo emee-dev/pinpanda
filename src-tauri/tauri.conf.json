@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "annie",
+  "productName": "worm",
   "version": "0.1.0",
-  "identifier": "com.annie.app",
+  "identifier": "com.worm.http",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
@@ -14,7 +14,9 @@
       {
         "title": "annie",
         "width": 800,
-        "height": 600
+        "height": 600,
+        "minWidth": 997,
+        "minHeight": 600
       }
     ],
     "security": {

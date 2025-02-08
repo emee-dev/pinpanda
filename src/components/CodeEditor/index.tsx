@@ -5,6 +5,7 @@ import {
   CompletionSource,
 } from "@codemirror/autocomplete";
 import { defaultKeymap, history, indentWithTab } from "@codemirror/commands";
+import { indentOnInput } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
 import {
   Command,
@@ -21,7 +22,6 @@ import { basicSetup } from "codemirror";
 import { useEffect, useRef } from "react";
 import "./CodeEditor.css";
 import { toml } from "./lang-toml";
-import { indentOnInput } from "@codemirror/language";
 
 const myTheme = createTheme({
   theme: "dark",
@@ -42,7 +42,7 @@ const myTheme = createTheme({
     { tag: t.bool, color: "#569CD6" },
     { tag: t.null, color: "#D4D4D4" },
     { tag: t.keyword, color: "#569CD6" },
-    { tag: t.operator, color: "#D4D4D4" }, // Default text color
+    { tag: t.operator, color: "#D4D4D4" }, 
     { tag: t.className, color: "#4EC9B0" },
     { tag: t.definition(t.typeName), color: "#4EC9B0" },
     { tag: t.typeName, color: "#4EC9B0" },
