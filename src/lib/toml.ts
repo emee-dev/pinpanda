@@ -28,6 +28,7 @@ export const formatQuery = (obj: Record<string, unknown>) => {
   return valid_http_query;
 };
 
+// TODO make sure headers are string keypairs.
 export const formatTOMl = (toml_json: WormRequestSyntax) => {
   let method = getMethod(toml_json);
 
@@ -37,8 +38,8 @@ export const formatTOMl = (toml_json: WormRequestSyntax) => {
 
   let request = toml_json[method];
 
-  // @ts-expect-error
+  /*   // @ts-expect-error
   request.query = formatQuery(request.query);
-
+ */
   return { [method]: request };
 };

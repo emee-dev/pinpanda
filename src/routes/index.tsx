@@ -23,46 +23,27 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-// const code = `
-// # HTTP Request Definition
-// [get]
-// name = "Get User Info"
-// url = "http://localhost:3000/json"
-
-// [get.params]
-// user_id = 12345
-
-// [get.query]
-// name = "emee"
-
-// [get.body]
-// type = "json"
-// content = """
-// {
-//   "title": "New Post",
-//   "content": "This is the content of the new post.",
-//   "tags": ["example", "post"]
-// }
-// """
-
-// [get.headers]
-// Authorization = "{auth_token}"
-// Accept = "application/json"
-// `;
-
 const code = `
-[get]
+[post]
 name = "Get User Info"
-url = "http://localhost:3000"
-# query = [
-#   "name=emee,ajike"
-#   "limi=200"
-# ]
+url = "http://localhost:3000/form"
 
-
-[get.query]
-name = "emee,ajike"
+[post.query]
+name = "emmanuel"
 limit = 20
+page = 1
+
+[post.form_multipart]
+content = [
+    { field = "username", value = "wormclient" },
+    { field = "description", value = "This is the best api client." },
+    { field = "file", value = "./path_to_some_file" }
+]
+
+[post.headers]
+"Authorization" = "Bearer 123"
+"Content-Type" = "application/json"
+x-redis-ratelimit = "2000"
 `;
 
 type Response = {
@@ -90,14 +71,8 @@ function Index() {
   const [tomlCode, setToml] = useState("");
 
   useEffect(() => {
-    setToml(code);
+    setToml(code.trim());
   }, []);
-
-  useEffect(() => {
-    if (window) {
-      console.log(window);
-    }
-  }, [window]);
 
   return (
     <SidebarProvider defaultOpen={false} className="relative">

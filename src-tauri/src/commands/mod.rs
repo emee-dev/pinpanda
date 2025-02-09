@@ -48,8 +48,8 @@ struct RequestParams {
     // Request Bodies
     text: Option<BodyText>,
     json: Option<BodyText>,
-    form_multipart: Option<FormMultipart>,
-    // form_urlencoded: Option<BodyText>,
+    form_multipart: Option<FormPayload>,
+    form_urlencoded: Option<FormPayload>,
     xml: Option<BodyText>,
 }
 
@@ -59,7 +59,7 @@ struct BodyText {
 }
 
 #[derive(Deserialize, Debug, Clone, Serialize)]
-struct FormMultipart {
+struct FormPayload {
     /// Can handle both `form-data` and `multipart`.
     content: Vec<FormContent>,
 }
@@ -73,11 +73,16 @@ enum BodyVariants {
     BodyJson {
         content: String,
     },
-    // TODO make separate structs for form_data & url_encoded types
-    BodyForm {
-        #[serde(alias = "type")]
-        #[serde(rename(serialize = "type", deserialize = "body_type"))]
-        body_type: String,
+    BodyFormUrlEncoded {
+        // #[serde(alias = "type")]
+        // #[serde(rename(serialize = "type", deserialize = "body_type"))]
+        // body_type: String,
+        content: Vec<FormContent>,
+    },
+    BodyFormMultipart {
+        // #[serde(alias = "type")]
+        // #[serde(rename(serialize = "type", deserialize = "body_type"))]
+        // body_type: String,
         content: Vec<FormContent>,
     },
 
@@ -160,7 +165,7 @@ pub async fn cmd_http_request(toml_schema: &str) -> Result<RequestResponse, Stri
 
     let url: String = params.url;
     let method: String = params.method;
-    let headers = params.headers;
+    let headers: Option<Value> = params.headers;
 
     if url.is_empty() {
         return Err("Please provide a valid request url.".to_string());
@@ -170,18 +175,27 @@ pub async fn cmd_http_request(toml_schema: &str) -> Result<RequestResponse, Stri
         return Err("Please provide a valid request method.".to_string());
     };
 
-    let valid_body = match (params.text, params.json, params.form_multipart, params.xml) {
-        (Some(text), _, _, _) => BodyVariants::BodyText {
+    // TODO improve this logic to better support when there is no request body eg for get requests
+    let valid_body = match (
+        params.text,
+        params.json,
+        params.form_multipart,
+        params.form_urlencoded,
+        params.xml,
+    ) {
+        (Some(text), _, _, _, _) => BodyVariants::BodyText {
             content: text.content.to_owned(),
         },
-        (_, Some(json), _, _) => BodyVariants::BodyText {
+        (_, Some(json), _, _, _) => BodyVariants::BodyText {
             content: json.content.to_owned(),
         },
-        (_, _, Some(form_multipart), _) => BodyVariants::BodyForm {
-            body_type: String::from("form_multipart"),
+        (_, _, Some(form_multipart), _, _) => BodyVariants::BodyFormMultipart {
             content: form_multipart.content.to_owned(),
         },
-        (_, _, _, Some(_xml)) => BodyVariants::Unsupported,
+        (_, _, _, Some(form_urlencoded), _) => BodyVariants::BodyFormUrlEncoded {
+            content: form_urlencoded.content.to_owned(),
+        },
+        (_, _, _, _, Some(_xml)) => BodyVariants::Unsupported,
         _ => BodyVariants::Unknown,
     };
 
@@ -189,37 +203,38 @@ pub async fn cmd_http_request(toml_schema: &str) -> Result<RequestResponse, Stri
 
     // Here we can run pre-request scripts
 
-    let request = match method.to_lowercase().as_str() {
-        "get" => {
-            // TODO improve this code.
-            if let Some(query) = params.query {
-                let parse_object = query
-                    .as_object()
-                    .expect("query should be a valid json value keypair");
+    let query_url = match params.query {
+        Some(query) => {
+            let parse_object = query
+                .as_object()
+                .expect("query should be a valid json value keypair");
 
-                let mut arr: Vec<(String, String)> = vec![];
+            let mut key_value: Vec<(String, String)> = vec![];
 
-                for item in parse_object {
-                    let key = item.0.to_string();
-                    let value = item.1.to_string();
+            for item in parse_object {
+                let key = item.0.to_string();
+                let value = item.1.to_string();
 
-                    arr.push((key, value));
-                }
-
-                let queried_url = reqwest::Url::parse_with_params(&url, &arr).unwrap();
-
-                client.get(queried_url)
-            } else {
-                client.get(&url)
+                key_value.push((key, value));
             }
+
+            let query_str = reqwest::Url::parse_with_params(&url, &key_value)
+                .expect("should be a valid query string.");
+
+            query_str.to_string()
         }
-        "head" => client.head(&url),
-        "post" => client.post(&url),
-        "put" => client.put(&url),
-        "patch" => client.patch(&url),
-        "delete" => client.delete(&url),
-        "options" => client.request(Method::OPTIONS, &url),
-        _ => client.get(&url),
+        None => url.to_string(),
+    };
+
+    let request = match method.to_lowercase().as_str() {
+        "get" => client.get(&query_url),
+        "head" => client.head(&query_url),
+        "post" => client.post(&query_url),
+        "put" => client.put(&query_url),
+        "patch" => client.patch(&query_url),
+        "delete" => client.delete(&query_url),
+        "options" => client.request(Method::OPTIONS, &query_url),
+        _ => client.get(&query_url),
     };
 
     let with_request_body = match valid_body {
@@ -233,30 +248,34 @@ pub async fn cmd_http_request(toml_schema: &str) -> Result<RequestResponse, Stri
                 Err(msg) => return Err(msg.to_string()),
             }
         }
-        BodyVariants::BodyForm { content, body_type } => {
-            match body_type.as_str() {
-                "form_urlencoded" => request.form(&content),
-                "form_multipart" => {
-                    let mut form = multipart::Form::new();
+        BodyVariants::BodyFormUrlEncoded { content } => {
+            let mut params = HashMap::new();
 
-                    for item in content {
-                        let key = item.field;
-                        // try reading the value as file initiallly, if it fails then return the value as string or null
-                        let value = item.value;
-
-                        form = form.text(key.clone(), value.to_string());
-                    }
-
-                    request.multipart(form)
-                }
-                _ => return Err("Unsupported to request form body.".to_string()),
+            for item in content {
+                params.insert(item.field, item.value);
             }
+
+            request.form(&params)
+        }
+        BodyVariants::BodyFormMultipart { content } => {
+            let mut form = multipart::Form::new();
+
+            for item in content {
+                let key = item.field;
+
+                // try reading the value as file initially, if it fails then return the value as string or null
+                let value = item.value;
+
+                form = form.text(key.clone(), value.to_string());
+            }
+
+            request.multipart(form)
         }
         BodyVariants::Unsupported => request,
         BodyVariants::Unknown => request,
     };
 
-    let with_headers = match headers {
+    let with_request_headers = match headers {
         Some(valid_headers) => {
             let parse_headers = valid_headers.as_object().unwrap();
 
@@ -264,21 +283,26 @@ pub async fn cmd_http_request(toml_schema: &str) -> Result<RequestResponse, Stri
 
             reqwest_headers.insert("User-Agent", "Worm".parse().unwrap());
 
-            for (key, value) in parse_headers {
-                let string_key = key.to_owned();
+            for item in parse_headers {
+                let key = item.0.to_owned();
+                let value = item.1;
 
-                if value.is_number() {
-                    return Err("Invalid request header value".into());
+                if key.is_empty() {
+                    return Err("Invalid request header".into());
                 }
 
-                let string_val = value
+                if value.is_number() {
+                    return Err("Invalid request value, you may have provided a number.".into());
+                }
+
+                let value = value
                     .as_str()
                     .expect("should expect header value to be a valid string.");
 
                 // TODO handle cases where the header key and values may be invalid.
                 reqwest_headers.insert(
-                    HeaderName::from_str(string_key.as_str()).unwrap(),
-                    HeaderValue::from_str(string_val).unwrap(),
+                    HeaderName::from_str(key.as_str()).unwrap(),
+                    HeaderValue::from_str(value).unwrap(),
                 );
             }
 
@@ -287,7 +311,7 @@ pub async fn cmd_http_request(toml_schema: &str) -> Result<RequestResponse, Stri
         None => with_request_body,
     };
 
-    let send_request = with_headers.send().await;
+    let send_request = with_request_headers.send().await;
 
     let response = match send_request {
         Ok(response) => response,
@@ -299,9 +323,11 @@ pub async fn cmd_http_request(toml_schema: &str) -> Result<RequestResponse, Stri
     let status = response.status().as_u16();
     let headers = response.headers().clone();
 
-    for (key, value) in headers.iter() {
-        // TODO handle the potential error.
-        response_headers.insert(key.to_string(), value.to_str().unwrap().to_string());
+    for item in headers {
+        let key = item.0.unwrap().to_string();
+        let value = item.1.to_str().unwrap().to_string();
+
+        response_headers.insert(key, value);
     }
 
     let response_as_text = response.text().await;

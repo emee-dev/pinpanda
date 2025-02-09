@@ -1,4 +1,4 @@
-# Environment Variables
+# Variables
 # [env]
 # base_url = "https://api.example.com"
 # auth_token = "Bearer your_auth_token"
@@ -6,7 +6,7 @@
 # HTTP Request Definition
 [get]
 name = "Get User Info"
-url = "{base_url}/users/{user_id}"
+url = "_.base_url/users/_.user_id"
 
 [get.params]
 user_id = 12345
@@ -17,7 +17,7 @@ page = 10
 limit = 30
 
 [get.headers]
-Authorization = "{auth_token}"
+Authorization = "_.auth_token"
 Accept = "application/json"
 
 # V1 A bit boilerplaty
@@ -70,39 +70,39 @@ Accept = "application/json"
 
 
 # V2 Better and concise
-# [get.json]
-# content = """
-# {
-#     "userId": "jae",
-#     "email": "email@gmail.com"
-# }
-# """
+[get.json]
+content = """
+{
+    "userId": "jae",
+    "email": "email@gmail.com"
+}
+"""
 
-# [get.form_data]
-# content = [
-# # Under the hood, we try to read the value as a file, and if it fails, return as a string.
-#     { field = "file", value = "./path/to/file.txt" },
-#     { field = "user_name", value = "jet" }
-# ]
+[get.form_data]
+content = [
+# Under the hood, we try to read the value as a file, and if it fails, return as a string.
+    { field = "file", value = "./path/to/file.txt" },
+    { field = "user_name", value = "jet" }
+]
 
-# [get.form_urlencoded]
-# content = [
-#     { field = "title", value = "New Post" },
-#     { field = "content", value = "This is the content of the new post." },
-#     { field = "tags", value = "example,post" }
-# ]
+[get.form_urlencoded]
+content = [
+    { field = "title", value = "New Post" },
+    { field = "content", value = "This is the content of the new post." },
+    { field = "tags", value = "example,post" }
+]
 
-# [get.xml]
-# content = """
-# <post>
-#   <title>New Post</title>
-#   <content>This is the content of the new post.</content>
-#   <tags>
-#     <tag>example</tag>
-#     <tag>post</tag>
-#   </tags>
-# </post>
-# """
+[get.xml]
+content = """
+<post>
+  <title>New Post</title>
+  <content>This is the content of the new post.</content>
+  <tags>
+    <tag>example</tag>
+    <tag>post</tag>
+  </tags>
+</post>
+"""
 
 [get.text]
 content = """
