@@ -14,10 +14,11 @@ import { Loader, SendIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import RJV from "react-json-view";
 import { parse, stringify } from "smol-toml";
-// import packageJson from "../../package.json";
 import { useTheme } from "@/components/theme-provider";
 import { formatTOMl } from "@/lib/toml";
+import { X } from "lucide-react";
 import "./rjv.css";
+import Tabs from "@/components/Tabs";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -26,18 +27,22 @@ export const Route = createFileRoute("/")({
 const code = `
 [post]
 name = "Get User Info"
-url = "http://localhost:3000/form"
+url = "https://typedwebhook.tools/webhook/bc3854a6-7689-4a71-87d2-5dfd4e1ed484"
 
 [post.query]
 name = "emmanuel"
 limit = 20
 page = 1
 
+# [post.json]
+# content = """
+# {"user": "123"}
+# """
+
 [post.form_multipart]
 content = [
     { field = "username", value = "wormclient" },
     { field = "description", value = "This is the best api client." },
-    { field = "file", value = "./path_to_some_file" }
 ]
 
 [post.headers]
@@ -80,9 +85,11 @@ function Index() {
 
       <SidebarInset className={`h-screen overflow-hidden `}>
         <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12 ">
-          <div className="flex items-center gap-2 px-4">
+          <div className="flex items-center gap-2 px-4 transition-all">
             <SidebarTrigger />
             <Separator orientation="vertical" className="h-4 mr-2" />
+
+            <Tabs />
           </div>
           <div className="px-3 ml-auto ">
             <NavActions
@@ -118,110 +125,87 @@ function Index() {
             />
           </div>
         </header>
-        <div className="flex flex-col flex-1 gap-4 p-4 pt-2 overflow-hidden">
-          <div className="grid grid-cols-1 gap-4 overflow-hidden md:grid-cols-2">
-            <div className="h-[650px] mt-1 border border-dashed border-neutral-300 gap-y-2 relative overflow-scroll font-geist scrollbar-hide rounded-md max-h-[650px]">
-              <div className="flex w-full p-1">
-                <Button
-                  size="icon"
-                  className="w-12 ml-auto h-7"
-                  onClick={async () => {
-                    try {
-                      const parsed = parse(tomlCode) as any;
+        <div className="grid grid-cols-1 gap-4 px-2 overflow-hidden md:grid-cols-[1fr_1fr]">
+          <div className="h-[650px] mt-1  gap-y-2 relative overflow-scroll font-geist scrollbar-hide rounded-md max-h-[650px] ">
+            <div className="flex w-full p-1">
+              <Button
+                size="icon"
+                className="w-12 ml-auto h-7"
+                onClick={async () => {
+                  try {
+                    const parsed = parse(tomlCode) as any;
 
-                      let formatted_toml = formatTOMl(parsed as any);
+                    let formatted_toml = formatTOMl(parsed as any);
 
-                      let toml = stringify(formatted_toml);
+                    let toml = stringify(formatted_toml);
 
-                      let request = (await invoke("cmd_http_request", {
-                        toml_schema: toml,
-                      })) as Response;
+                    let request = (await invoke("cmd_http_request", {
+                      toml_schema: toml,
+                    })) as Response;
 
-                      let response = request.text_response;
+                    let response = request.text_response;
 
-                      if (!isJsonStr(response)) {
-                        return setResponse({
-                          code: response as string,
-                          lang: "text",
-                        });
-                      }
-
-                      setResponse({
-                        code: JSON.parse(response as string),
-                        lang: "json",
+                    if (!isJsonStr(response)) {
+                      return setResponse({
+                        code: response as string,
+                        lang: "text",
                       });
-                    } catch (error: any) {
-                      console.log("Error:", error);
                     }
-                  }}
-                >
-                  <SendIcon />
-                </Button>
-                {/* <Button size="icon" className="w-12 ml-auto h-7">
+
+                    setResponse({
+                      code: JSON.parse(response as string),
+                      lang: "json",
+                    });
+                  } catch (error: any) {
+                    console.log("Error:", error);
+                  }
+                }}
+              >
+                <SendIcon />
+              </Button>
+              {/* <Button size="icon" className="w-12 ml-auto h-7">
                   <Loader className="animate-spin" />
                 </Button> */}
-              </div>
-              <CodeEditor
-                defaultText={tomlCode}
-                onChange={(val) => setToml(val)}
-              />
             </div>
+            <CodeEditor
+              defaultText={tomlCode}
+              onChange={(val) => setToml(val)}
+            />
+          </div>
 
-            <div
-              className={`h-[650px] ${theme === "dark" ? "[--rjv_object_key:white] border-neutral-300" : "[--rjv_object_key:black] bg-neutral-300/75 border-neutral-800 "} mt-1 p-2 border border-dashed  shadow-sm rounded-lg relative overflow-scroll max-h-[650px] scrollbar-hide `}
-            >
-              {response.lang === "json" ? (
-                <RJV
-                  src={response.code}
-                  name={false}
-                  enableClipboard={false}
-                  displayDataTypes={false}
-                  iconStyle="triangle"
-                  collapsed={false}
-                  sortKeys={true}
-                  quotesOnKeys={false}
-                  theme="twilight"
-                  displayObjectSize={false}
-                  indentWidth={5}
-                  style={{
-                    // paddingLeft: "3px",
-                    fontSize: "13px",
-                    fontFamily: "Geist, sans-serif",
-                    background: "transparent",
-                  }}
-                />
-              ) : (
-                <div>
-                  <span className="text-base font-geist">
-                    {response.code as string}
-                  </span>
-                </div>
-              )}
-            </div>
+          <div
+            className={`h-[650px] ${theme === "dark" ? "[--rjv_object_key:white]" : "[--rjv_object_key:black] bg-neutral-300/75 "} mt-1 p-2 border border-dashed  shadow-sm rounded-lg relative overflow-scroll max-h-[650px] scrollbar-hide `}
+          >
+            {response.lang === "json" ? (
+              <RJV
+                src={response.code}
+                name={false}
+                enableClipboard={false}
+                displayDataTypes={false}
+                iconStyle="triangle"
+                collapsed={false}
+                sortKeys={true}
+                quotesOnKeys={false}
+                theme="twilight"
+                displayObjectSize={false}
+                indentWidth={5}
+                style={{
+                  // paddingLeft: "3px",
+                  fontSize: "13px",
+                  fontFamily: "Geist, sans-serif",
+                  background: "transparent",
+                }}
+              />
+            ) : (
+              <div>
+                <span className="text-base font-geist">
+                  {response.code as string}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </SidebarInset>
     </SidebarProvider>
   );
 }
-
-// const TabNavigationWithIconsExample = () => (
-//   <TabNavigation>
-//     <TabNavigationLink href="#" active className="inline-flex gap-2">
-//       <RiHome2Line className="size-4" aria-hidden="true" />
-//       Home
-//     </TabNavigationLink>
-//     <TabNavigationLink href="#" className="inline-flex gap-2">
-//       <RiBankCard2Line className="-ml-1 size-4" aria-hidden="true" />
-//       Balances
-//     </TabNavigationLink>
-//     <TabNavigationLink href="#" className="inline-flex gap-2">
-//       <RiExchange2Line className="-ml-1 size-4" aria-hidden="true" />
-//       Transactions
-//     </TabNavigationLink>
-//     <TabNavigationLink href="#" className="inline-flex gap-2">
-//       <RiCustomerService2Fill className="-ml-1 size-4" aria-hidden="true" />
-//       Customers
-//     </TabNavigationLink>
-//   </TabNavigation>
-// );

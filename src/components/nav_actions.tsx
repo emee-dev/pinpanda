@@ -95,10 +95,6 @@ const data = [
 export function NavActions(props: { onClick: () => void }) {
   const [isOpen, setIsOpen] = useState(false);
 
-  // useEffect(() => {
-  //   setIsOpen(true);
-  // }, []);
-
   return (
     <div className="flex items-center gap-2 text-sm">
       {/* <Button onClick={props.onClick}>Send</Button> */}

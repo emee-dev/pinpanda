@@ -1,0 +1,40 @@
+openapi: 3.1.1
+info:
+  title: Hello World
+  version: 1.0.0
+servers: []
+paths:
+  /foobar:
+    get:
+      operationId: get_foobar 
+      summary: Retrieve foobar
+      responses:
+        "200":
+          description: OK     
+          content:
+            application/json: 
+              example:        
+                foo: bar      
+  /greet:
+    post:
+      operationId: post__greet
+      summary: Send a greeting
+      requestBody:
+        required: true        
+        content:
+          application/json:   
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+      responses:
+        "201":
+          description: Greeting created
+      tags: []
+components:
+  schemas: {}
+security: []
+tags: []
+externalDocs:
+  url: https://example.com

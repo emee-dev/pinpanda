@@ -14,7 +14,6 @@ import {
   keymap,
   rectangularSelection,
 } from "@codemirror/view";
-import "@fortawesome/fontawesome-free/css/all.min.css";
 import { tags as t } from "@lezer/highlight";
 import { createTheme, CreateThemeOptions } from "@uiw/codemirror-themes";
 import { Extension } from "@uiw/react-codemirror";
@@ -42,7 +41,7 @@ const myTheme = createTheme({
     { tag: t.bool, color: "#569CD6" },
     { tag: t.null, color: "#D4D4D4" },
     { tag: t.keyword, color: "#569CD6" },
-    { tag: t.operator, color: "#D4D4D4" }, 
+    { tag: t.operator, color: "#D4D4D4" },
     { tag: t.className, color: "#4EC9B0" },
     { tag: t.definition(t.typeName), color: "#4EC9B0" },
     { tag: t.typeName, color: "#4EC9B0" },
@@ -64,6 +63,12 @@ const handleCtrlS: Command = (_target: EditorView) => {
   return true;
 };
 
+const editor = EditorView.baseTheme({
+  ".cm-editor > .cm-scroller": {
+    display: "none",
+  },
+});
+
 const extensions = [
   toml(),
   history(),
@@ -71,24 +76,39 @@ const extensions = [
   indentOnInput(),
   closeBrackets(),
   rectangularSelection(),
-  // foldGutter({
-  //   markerDOM(open) {
-  //     const icon = document.createElement("i");
-  //     icon.style.cursor = "pointer";
-
-  //     icon.classList.add("fa-solid", open ? "fa-caret-down" : "fa-caret-right");
-
-  //     return icon;
-  //   },
-  // }),
   keymap.of([
     {
       key: "Ctrl-s",
       run: handleCtrlS,
     },
   ]),
+  editor,
   highlightActiveLine(),
 ] as Extension[];
+
+const completions: Completion[] = [
+  // { label: "panic", type: "keyword" },
+  // { label: "park", type: "constant", info: "Test completion" },
+  // { label: "password", type: "variable" },
+  // snippetCompletion("some_random(${1:param}) { ${2:body} }", {
+  //   label: "some_random",
+  //   type: "function",
+  // }),
+  // snippetCompletion('content = """\n{${1}}\n"""', {
+  //   label: "json body",
+  //   type: "function",
+  // }),
+];
+
+const myCompletions: CompletionSource = (context) => {
+  let before = context.matchBefore(/\w+/);
+  if (!context.explicit && !before) return null;
+  return {
+    from: before ? before.from : context.pos,
+    options: completions,
+    validFor: /^\w*$/,
+  };
+};
 
 export default function CodeEditor(props: {
   defaultText: string;
@@ -96,30 +116,6 @@ export default function CodeEditor(props: {
 }) {
   const editorRef = useRef<HTMLDivElement>(null);
   const editorView = useRef<EditorView | null>(null);
-
-  const completions: Completion[] = [
-    // { label: "panic", type: "keyword" },
-    // { label: "park", type: "constant", info: "Test completion" },
-    // { label: "password", type: "variable" },
-    // snippetCompletion("some_random(${1:param}) { ${2:body} }", {
-    //   label: "some_random",
-    //   type: "function",
-    // }),
-    // snippetCompletion('content = """\n{${1}}\n"""', {
-    //   label: "json body",
-    //   type: "function",
-    // }),
-  ];
-
-  const myCompletions: CompletionSource = (context) => {
-    let before = context.matchBefore(/\w+/);
-    if (!context.explicit && !before) return null;
-    return {
-      from: before ? before.from : context.pos,
-      options: completions,
-      validFor: /^\w*$/,
-    };
-  };
 
   useEffect(() => {
     const startState = EditorState.create({
@@ -164,5 +160,6 @@ export default function CodeEditor(props: {
     }
   }, [props.defaultText]);
 
-  return <div ref={editorRef} />;
+  // return <div ref={editorRef} className="scrollbar-hide" />;
+  return <div ref={editorRef} className="overflow-x-hidden" />;
 }

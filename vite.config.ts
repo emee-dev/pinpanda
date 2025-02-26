@@ -3,7 +3,6 @@ import path from "path";
 import react from "@vitejs/plugin-react";
 import Unfonts from "unplugin-fonts/vite";
 import { TanStackRouterVite } from "@tanstack/router-plugin/vite";
-import { lezer } from "@lezer/generator/rollup";
 
 const host = process.env.TAURI_DEV_HOST;
 
@@ -22,7 +21,6 @@ export default defineConfig(async () => ({
         ],
       },
     }),
-    // lex(),
   ],
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`

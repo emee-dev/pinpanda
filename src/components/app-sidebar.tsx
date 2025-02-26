@@ -18,7 +18,8 @@ import {
   Folder,
   Tree as TreeProvider,
 } from "@/components/ui/tree-view-api";
-import { AudioWaveform, Command, GalleryVerticalEnd } from "lucide-react";
+import { FileTree, useFileTreeStore } from "@/hooks/use-filetree";
+import { AudioWaveform, Command, GalleryVerticalEnd, Plus } from "lucide-react";
 import React from "react";
 
 const meta = {
@@ -46,87 +47,89 @@ const meta = {
   ],
 };
 
-type FileTree = {
-  id: string;
-  name: string;
-  isSelectable: boolean;
-  children?: FileTree[];
-};
+// type FileTree = {
+//   id: string;
+//   name: string;
+//   isSelectable: boolean;
+//   children?: FileTree[];
+//   fileicon?: React.ReactNode;
+// };
 
-const elements: FileTree[] = [
-  {
-    id: "1",
-    isSelectable: true,
-    name: "src",
-    children: [
-      {
-        id: "2",
-        isSelectable: true,
-        name: "app.tsx",
-      },
-      {
-        id: "3",
-        isSelectable: true,
-        name: "components",
-        children: [
-          {
-            id: "20",
-            isSelectable: true,
-            name: "pages",
-            children: [
-              {
-                id: "21",
-                isSelectable: false,
-                name: "interface.ts",
-              },
-            ],
-          },
-        ],
-      },
-      {
-        id: "6",
-        isSelectable: true,
-        name: "ui",
-        children: [
-          {
-            id: "7",
-            isSelectable: true,
-            name: "carousel.tsx",
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: "100",
-    isSelectable: true,
-    name: "node_modules",
-    children: [],
-  },
-  {
-    id: "29",
-    isSelectable: true,
-    name: ".env.development",
-  },
-  {
-    id: "24",
-    isSelectable: true,
-    name: ".env.local",
-  },
-  {
-    id: "34",
-    isSelectable: true,
-    name: ".env.production",
-  },
-  {
-    id: "44",
-    isSelectable: true,
-    name: "worm.config.json",
-  },
-];
+// const elements: FileTree[] = [
+//   {
+//     id: "1",
+//     isSelectable: true,
+//     name: "src",
+//     children: [
+//       {
+//         id: "2",
+//         isSelectable: true,
+//         name: "app.tsx",
+//       },
+//       {
+//         id: "3",
+//         isSelectable: true,
+//         name: "components",
+//         children: [
+//           {
+//             id: "20",
+//             isSelectable: true,
+//             name: "pages",
+//             children: [
+//               {
+//                 id: "21",
+//                 isSelectable: false,
+//                 name: "interface.ts",
+//               },
+//             ],
+//           },
+//         ],
+//       },
+//       {
+//         id: "6",
+//         isSelectable: true,
+//         name: "ui",
+//         children: [
+//           {
+//             id: "7",
+//             isSelectable: true,
+//             name: "carousel.tsx",
+//           },
+//         ],
+//       },
+//     ],
+//   },
+//   {
+//     id: "100",
+//     isSelectable: true,
+//     name: "node_modules",
+//     children: [],
+//   },
+//   {
+//     id: "29",
+//     isSelectable: true,
+//     name: ".env.development",
+//   },
+//   {
+//     id: "24",
+//     isSelectable: true,
+//     name: ".env.local",
+//   },
+//   {
+//     id: "34",
+//     isSelectable: true,
+//     name: ".env.production",
+//   },
+//   {
+//     id: "44",
+//     isSelectable: true,
+//     name: "worm.config.json",
+//   },
+// ];
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { open } = useSidebar();
+  const { files, push } = useFileTreeStore();
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -135,10 +138,25 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent className={open ? "block" : "hidden"}>
         <SidebarGroup>
-          <SidebarGroupLabel>Files</SidebarGroupLabel>
+          <SidebarGroupLabel className="flex items-center">
+            Files{" "}
+            <div className="ml-auto">
+              <Plus
+                className="h-4"
+                onClick={() => {
+                  push({
+                    id: "290010",
+                    isSelectable: true,
+                    name: "wormfig.toml",
+                  });
+                }}
+              />
+            </div>
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              <Tree folders={elements} root_provider />
+              {/* <Tree folders={elements} root_provider /> */}
+              <Tree folders={[]} root_provider />
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -161,18 +179,22 @@ const Tree = ({
   folders: FileTree[];
   root_provider?: boolean;
 }) => {
+  const { files, pushActiveTab } = useFileTreeStore();
   const handleItemSelect = (
     e: React.MouseEvent<HTMLButtonElement | HTMLDivElement, MouseEvent>,
     item: FileTree
   ) => {
     e.stopPropagation();
     e.preventDefault();
-    console.log(item.name);
+    // console.log(item.name);
+
+    pushActiveTab(item);
   };
 
   const renderTree = (entities: FileTree[]) =>
     entities.map((entity) =>
       entity.children ? (
+        // TODO handle folders
         <div key={entity.id}>
           <Folder
             element={entity.name}
@@ -198,11 +220,11 @@ const Tree = ({
     <TreeProvider
       className="p-2 overflow-hidden rounded-md h-60 bg-background"
       initialSelectedId="carousel.tsx_7"
-      elements={folders}
+      elements={files}
     >
-      {renderTree(folders)}
+      {renderTree(files)}
     </TreeProvider>
   ) : (
-    <>{renderTree(folders)}</>
+    <>{renderTree(files)}</>
   );
 };
