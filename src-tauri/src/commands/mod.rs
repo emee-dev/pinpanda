@@ -349,3 +349,8 @@ pub async fn cmd_http_request(toml_schema: &str) -> Result<RequestResponse, Stri
     // Here we can run post-request scripts
     Ok(after_response)
 }
+
+#[tauri::command(rename_all = "snake_case")]
+pub async fn cmd_list_files() -> Result<Vec<()>, String> {
+    Ok(vec![])
+}
