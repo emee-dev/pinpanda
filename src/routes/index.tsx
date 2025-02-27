@@ -10,8 +10,8 @@ import {
 } from "@/components/ui/sidebar";
 import { createFileRoute } from "@tanstack/react-router";
 import { invoke } from "@tauri-apps/api/core";
-import { Loader, SendIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Dot, Hourglass, Lightbulb, Loader, SendIcon } from "lucide-react";
+import { CSSProperties, useEffect, useState } from "react";
 import RJV from "react-json-view";
 import { parse, stringify } from "smol-toml";
 import { useTheme } from "@/components/theme-provider";
@@ -19,6 +19,8 @@ import { formatTOMl } from "@/lib/toml";
 import { X } from "lucide-react";
 import "./rjv.css";
 import Tabs from "@/components/Tabs";
+import { useMutation } from "@tanstack/react-query";
+import { useFileTreeStore } from "@/hooks/use-filetree";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -27,7 +29,7 @@ export const Route = createFileRoute("/")({
 const code = `
 [post]
 name = "Get User Info"
-url = "https://typedwebhook.tools/webhook/bc3854a6-7689-4a71-87d2-5dfd4e1ed484"
+url = "https://postman-echo.com/post"
 
 [post.query]
 name = "emmanuel"
@@ -43,6 +45,7 @@ page = 1
 content = [
     { field = "username", value = "wormclient" },
     { field = "description", value = "This is the best api client." },
+    # { field = "avatar", value = "./some_file (coming soon)." },
 ]
 
 [post.headers]
@@ -74,10 +77,64 @@ function Index() {
   const [response, setResponse] = useState({ code: {}, lang: "json" });
   const { theme } = useTheme();
   const [tomlCode, setToml] = useState("");
+  const { mutate, isPending, error, data } = useMutation<Response>({
+    mutationKey: [""],
+    mutationFn: async () => {
+      try {
+        const parsed = parse(tomlCode) as any;
+
+        const formatted_toml = formatTOMl(parsed as any);
+
+        const toml = stringify(formatted_toml);
+
+        const request = (await invoke("cmd_http_request", {
+          toml_schema: toml,
+        })) as Response;
+
+        return Promise.resolve(request);
+      } catch (error: any) {
+        console.log("Error:", error);
+        return Promise.reject(error);
+      }
+    },
+  });
+  const { currentFile, contents } = useFileTreeStore();
 
   useEffect(() => {
     setToml(code.trim());
   }, []);
+
+  useEffect(() => {
+    if (currentFile) {
+      const currentContent = contents.get(currentFile.id);
+      console.log("currentFile", currentContent);
+      setToml(currentContent as string);
+    }
+  }, [currentFile]);
+
+  useEffect(() => {
+    if (tomlCode.trim() && currentFile) {
+      const currentFileId = currentFile.id;
+      contents.set(currentFileId, tomlCode);
+    }
+  }, [tomlCode, currentFile]);
+
+  useEffect(() => {
+    if (data) {
+      const response = data.text_response;
+      if (!isJsonStr(response)) {
+        return setResponse({
+          code: response as string,
+          lang: "text",
+        });
+      }
+
+      setResponse({
+        code: JSON.parse(response as string),
+        lang: "json",
+      });
+    }
+  }, [data]);
 
   return (
     <SidebarProvider defaultOpen={false} className="relative">
@@ -92,37 +149,7 @@ function Index() {
             <Tabs />
           </div>
           <div className="px-3 ml-auto ">
-            <NavActions
-              onClick={async () => {
-                try {
-                  const parsed = parse(tomlCode) as any;
-
-                  let formatted_toml = formatTOMl(parsed as any);
-
-                  let toml = stringify(formatted_toml);
-
-                  let request = (await invoke("cmd_http_request", {
-                    toml_schema: toml,
-                  })) as Response;
-
-                  let response = request.text_response;
-
-                  if (!isJsonStr(response)) {
-                    return setResponse({
-                      code: response as string,
-                      lang: "text",
-                    });
-                  }
-
-                  setResponse({
-                    code: JSON.parse(response as string),
-                    lang: "json",
-                  });
-                } catch (error: any) {
-                  console.log("Error:", error);
-                }
-              }}
-            />
+            <NavActions onClick={async () => {}} />
           </div>
         </header>
         <div className="grid grid-cols-1 gap-4 px-2 overflow-hidden md:grid-cols-[1fr_1fr]">
@@ -131,41 +158,10 @@ function Index() {
               <Button
                 size="icon"
                 className="w-12 ml-auto h-7"
-                onClick={async () => {
-                  try {
-                    const parsed = parse(tomlCode) as any;
-
-                    let formatted_toml = formatTOMl(parsed as any);
-
-                    let toml = stringify(formatted_toml);
-
-                    let request = (await invoke("cmd_http_request", {
-                      toml_schema: toml,
-                    })) as Response;
-
-                    let response = request.text_response;
-
-                    if (!isJsonStr(response)) {
-                      return setResponse({
-                        code: response as string,
-                        lang: "text",
-                      });
-                    }
-
-                    setResponse({
-                      code: JSON.parse(response as string),
-                      lang: "json",
-                    });
-                  } catch (error: any) {
-                    console.log("Error:", error);
-                  }
-                }}
+                onClick={() => mutate()}
               >
                 <SendIcon />
               </Button>
-              {/* <Button size="icon" className="w-12 ml-auto h-7">
-                  <Loader className="animate-spin" />
-                </Button> */}
             </div>
             <CodeEditor
               defaultText={tomlCode}
@@ -174,33 +170,38 @@ function Index() {
           </div>
 
           <div
-            className={`h-[650px] ${theme === "dark" ? "[--rjv_object_key:white]" : "[--rjv_object_key:black] bg-neutral-300/75 "} mt-1 p-2 border border-dashed  shadow-sm rounded-lg relative overflow-scroll max-h-[650px] scrollbar-hide `}
+            className={`h-[650px] relative ${theme === "dark" ? "[--rjv_object_key:white]" : "[--rjv_object_key:black] bg-neutral-300/75 "} mt-1 p-2 border border-dashed  shadow-sm rounded-lg relative overflow-scroll max-h-[650px] scrollbar-hide ${isPending ? "flex justify-center" : "block"}`}
           >
-            {response.lang === "json" ? (
-              <RJV
-                src={response.code}
-                name={false}
-                enableClipboard={false}
-                displayDataTypes={false}
-                iconStyle="triangle"
-                collapsed={false}
-                sortKeys={true}
-                quotesOnKeys={false}
-                theme="twilight"
-                displayObjectSize={false}
-                indentWidth={5}
+            {data && (
+              <div className="absolute top-0 flex items-center w-full mt-2 rounded-sm gap-x-2 bg-neutral-800/70">
+                <div className="flex items-center">
+                  <span className="text-sm text-neutral-500">
+                    {data.status}
+                  </span>
+                </div>
+                <div className="flex items-center">
+                  <Dot className="h-7" />
+                  <span className="text-sm text-neutral-500">
+                    {data.elapsed_time}ms
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {!isPending && (
+              <ResponseTabContent
+                code={response.code}
+                lang={response.lang}
                 style={{
-                  // paddingLeft: "3px",
-                  fontSize: "13px",
-                  fontFamily: "Geist, sans-serif",
-                  background: "transparent",
+                  marginTop: data ? "30px" : "0px",
                 }}
               />
-            ) : (
-              <div>
-                <span className="text-base font-geist">
-                  {response.code as string}
-                </span>
+            )}
+
+            {isPending && (
+              <div className="flex flex-col items-center gap-y-2 mt-[60px]">
+                <Loader className="animate-spin " />
+                <span className="text-neutral-500">Please wait...</span>
               </div>
             )}
           </div>
@@ -209,3 +210,40 @@ function Index() {
     </SidebarProvider>
   );
 }
+
+const ResponseTabContent = (props: {
+  code: Record<string, unknown> | string;
+  lang: string;
+  style?: CSSProperties;
+}) => {
+  if (props.lang !== "json") {
+    return (
+      <div style={props.style}>
+        <span className="text-sm font-geist">{props.code as string}</span>
+      </div>
+    );
+  }
+
+  return (
+    <RJV
+      src={props.code as Record<string, unknown>}
+      name={false}
+      enableClipboard={false}
+      displayDataTypes={false}
+      iconStyle="triangle"
+      collapsed={false}
+      sortKeys={true}
+      quotesOnKeys={false}
+      theme="twilight"
+      displayObjectSize={false}
+      indentWidth={5}
+      style={{
+        ...props.style,
+        // paddingLeft: "3px",
+        fontSize: "13px",
+        fontFamily: "Geist, sans-serif",
+        background: "transparent",
+      }}
+    />
+  );
+};

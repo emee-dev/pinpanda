@@ -19,8 +19,28 @@ import {
   Tree as TreeProvider,
 } from "@/components/ui/tree-view-api";
 import { FileTree, useFileTreeStore } from "@/hooks/use-filetree";
-import { AudioWaveform, Command, GalleryVerticalEnd, Plus } from "lucide-react";
-import React from "react";
+import {
+  AudioWaveform,
+  Command,
+  FilePlus,
+  GalleryVerticalEnd,
+  Plus,
+} from "lucide-react";
+import React, { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { DropdownMenuLabel } from "./ui/dropdown-menu";
+import { Input } from "./ui/input";
+import { toast } from "sonner";
+import { Label } from "./ui/label";
+import { Button } from "./ui/button";
 
 const meta = {
   user: {
@@ -47,89 +67,10 @@ const meta = {
   ],
 };
 
-// type FileTree = {
-//   id: string;
-//   name: string;
-//   isSelectable: boolean;
-//   children?: FileTree[];
-//   fileicon?: React.ReactNode;
-// };
-
-// const elements: FileTree[] = [
-//   {
-//     id: "1",
-//     isSelectable: true,
-//     name: "src",
-//     children: [
-//       {
-//         id: "2",
-//         isSelectable: true,
-//         name: "app.tsx",
-//       },
-//       {
-//         id: "3",
-//         isSelectable: true,
-//         name: "components",
-//         children: [
-//           {
-//             id: "20",
-//             isSelectable: true,
-//             name: "pages",
-//             children: [
-//               {
-//                 id: "21",
-//                 isSelectable: false,
-//                 name: "interface.ts",
-//               },
-//             ],
-//           },
-//         ],
-//       },
-//       {
-//         id: "6",
-//         isSelectable: true,
-//         name: "ui",
-//         children: [
-//           {
-//             id: "7",
-//             isSelectable: true,
-//             name: "carousel.tsx",
-//           },
-//         ],
-//       },
-//     ],
-//   },
-//   {
-//     id: "100",
-//     isSelectable: true,
-//     name: "node_modules",
-//     children: [],
-//   },
-//   {
-//     id: "29",
-//     isSelectable: true,
-//     name: ".env.development",
-//   },
-//   {
-//     id: "24",
-//     isSelectable: true,
-//     name: ".env.local",
-//   },
-//   {
-//     id: "34",
-//     isSelectable: true,
-//     name: ".env.production",
-//   },
-//   {
-//     id: "44",
-//     isSelectable: true,
-//     name: "worm.config.json",
-//   },
-// ];
-
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { open } = useSidebar();
-  const { files, push } = useFileTreeStore();
+  const { push, contents, setCurrent, pushActiveTab } = useFileTreeStore();
+  const [dialogOpen, dialogOpenChange] = useState(false);
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -141,16 +82,80 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarGroupLabel className="flex items-center">
             Files{" "}
             <div className="ml-auto">
-              <Plus
-                className="h-4"
-                onClick={() => {
-                  push({
-                    id: "290010",
-                    isSelectable: true,
-                    name: "wormfig.toml",
-                  });
-                }}
-              />
+              <Dialog open={dialogOpen} onOpenChange={dialogOpenChange}>
+                <DialogTrigger asChild>
+                  <FilePlus className="h-4" />
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[425px]">
+                  <DialogHeader>
+                    <DialogTitle>Create New File</DialogTitle>
+                    <DialogDescription>
+                      Enter a name for your new file.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <form
+                    className="grid gap-4 py-4"
+                    onSubmit={(ev) => {
+                      ev.preventDefault();
+
+                      let form = new FormData(ev.currentTarget);
+
+                      let file_name = form.get("file_name") as string;
+
+                      if (!file_name.trim()) {
+                        return toast("Error creating a new file.", {
+                          description:
+                            "Please provide a valid filename with ext (.toml)",
+                        });
+                      }
+
+                      const fileId = crypto.randomUUID();
+
+                      contents.set(
+                        fileId,
+                        `[get]\nname="get all products"\nurl="your_api_url"`
+                      );
+
+                      const file = {
+                        id: fileId,
+                        isSelectable: true,
+                        name: file_name.trim() + ".toml",
+                      };
+
+                      push(file);
+
+                      setCurrent(fileId);
+                      pushActiveTab(file);
+                      dialogOpenChange(false);
+                    }}
+                  >
+                    <div className="grid gap-2">
+                      <Label htmlFor="file_name">Filename</Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          id="file_name"
+                          name="file_name"
+                          placeholder="Enter filename"
+                          className="flex-1"
+                          autoFocus
+                        />
+                        <div className="text-sm font-medium text-muted-foreground">
+                          {".toml"}
+                        </div>
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button
+                        variant="outline"
+                        onClick={() => dialogOpenChange(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button type="submit">Create</Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
             </div>
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -172,6 +177,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   );
 }
 
+type SelectEvent = React.MouseEvent<
+  HTMLButtonElement | HTMLDivElement,
+  MouseEvent
+>;
+
 const Tree = ({
   folders,
   root_provider = false,
@@ -179,16 +189,13 @@ const Tree = ({
   folders: FileTree[];
   root_provider?: boolean;
 }) => {
-  const { files, pushActiveTab } = useFileTreeStore();
-  const handleItemSelect = (
-    e: React.MouseEvent<HTMLButtonElement | HTMLDivElement, MouseEvent>,
-    item: FileTree
-  ) => {
+  const { files, pushActiveTab, setCurrent } = useFileTreeStore();
+  const handleItemSelect = (e: SelectEvent, item: FileTree) => {
     e.stopPropagation();
     e.preventDefault();
-    // console.log(item.name);
 
     pushActiveTab(item);
+    setCurrent(item.id);
   };
 
   const renderTree = (entities: FileTree[]) =>
