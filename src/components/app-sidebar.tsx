@@ -160,7 +160,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {/* <Tree folders={elements} root_provider /> */}
               <Tree folders={[]} root_provider />
             </SidebarMenu>
           </SidebarGroupContent>
@@ -169,9 +168,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       {/* Just an empty content */}
       <SidebarContent className={open ? "hidden" : "open"} />
 
-      <SidebarFooter>
-        <NavUser user={meta.user} />
-      </SidebarFooter>
+      <SidebarFooter>{/* <NavUser user={meta.user} /> */}</SidebarFooter>
       <SidebarRail />
     </Sidebar>
   );

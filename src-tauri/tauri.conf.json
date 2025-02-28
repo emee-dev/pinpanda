@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "annie",
+        "title": "worm",
         "width": 800,
         "height": 600,
         "minWidth": 997,
@@ -33,5 +33,32 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "cli": {
+      "description": "Worm cli interface",
+      "args": [
+        {
+          "short": "v",
+          "name": "verbose",
+          "description": "Verbosity level"
+        }
+      ],
+      "subcommands": {
+        "run": {
+          "description": "Run the application",
+          "args": [
+            {
+              "name": "debug",
+              "description": "Run application in debug mode"
+            },
+            {
+              "name": "release",
+              "description": "Run application in release mode"
+            }
+          ]
+        }
+      }
+    }
   }
 }

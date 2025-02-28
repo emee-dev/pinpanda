@@ -6,7 +6,6 @@ const env = import.meta.env.MODE;
 export const Route = createRootRoute({
   component: () => (
     <>
-      {/* <hr /> */}
       <Outlet />
       {env === "development" && <TanStackRouterDevtools />}
     </>

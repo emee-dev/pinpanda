@@ -1,12 +1,20 @@
+use glob::glob;
 use reqwest::multipart;
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::env;
+use std::path::Path;
 use std::str::FromStr;
+use std::sync::Mutex;
 use std::{collections::HashMap, time::Instant};
 use tauri::http::HeaderMap;
 use tauri::http::HeaderName;
 use tauri::http::HeaderValue;
+use tauri::Env;
+use tauri::Manager;
+use tauri::Runtime;
+use tauri::State;
 use toml;
 
 type Json = serde_json::Value;
@@ -351,6 +359,36 @@ pub async fn cmd_http_request(toml_schema: &str) -> Result<RequestResponse, Stri
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub async fn cmd_list_files() -> Result<Vec<()>, String> {
-    Ok(vec![])
+pub async fn cmd_update_cwd(curr_dir: &str) -> Result<String, String> {
+    let dir = Path::new(curr_dir);
+
+    if let Err(v) = env::set_current_dir(&dir) {
+        return Err(v.to_string());
+    }
+
+    Ok(env::current_dir().unwrap().to_str().unwrap().to_string())
 }
+
+#[derive(Deserialize, Clone, Debug, Default, Serialize)]
+pub struct AppData {
+    pub current_dir: &'static str,
+}
+
+type AppState = Mutex<AppData>;
+
+// #[tauri::command(rename_all = "snake_case")]
+// pub async fn cmd_list_files<R: Runtime>(
+//     app: tauri::AppHandle<R>,
+//     _window: tauri::Window<R>,
+// ) -> Result<String, String> {
+//     println!("command called");
+
+//     app.manage(AppState::default());
+
+//     Ok(app
+//         .state::<AppState>()
+//         .lock()
+//         .unwrap()
+//         .current_dir
+//         .to_string())
+// }

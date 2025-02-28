@@ -8,9 +8,17 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { open } from "@tauri-apps/plugin-dialog";
 import { createFileRoute } from "@tanstack/react-router";
 import { invoke } from "@tauri-apps/api/core";
-import { Dot, Hourglass, Lightbulb, Loader, SendIcon } from "lucide-react";
+import {
+  Dot,
+  Hourglass,
+  Lightbulb,
+  Loader,
+  Rotate3DIcon,
+  SendIcon,
+} from "lucide-react";
 import { CSSProperties, useEffect, useState } from "react";
 import RJV from "react-json-view";
 import { parse, stringify } from "smol-toml";
@@ -41,12 +49,17 @@ page = 1
 # {"user": "123"}
 # """
 
-[post.form_multipart]
-content = [
-    { field = "username", value = "wormclient" },
-    { field = "description", value = "This is the best api client." },
-    # { field = "avatar", value = "./some_file (coming soon)." },
-]
+# [post.form_multipart]
+# content = [
+#     { field = "username", value = "wormclient" },
+#     { field = "description", value = "This is the best api client." },
+#     # { field = "avatar", value = "./some_file (coming soon)." },
+# ]
+
+[post.text]
+content = """
+Hello friends
+"""
 
 [post.headers]
 "Authorization" = "Bearer 123"
@@ -72,6 +85,17 @@ const isJsonStr = <T extends string | null>(str: T) => {
     return false;
   }
 };
+
+// const changeWorkingDir = async () => {
+//   const pickFolder = await open({
+//     multiple: false,
+//     directory: true,
+//   });
+
+//   const set_folder = await invoke("cmd_update_cwd", {
+//     curr_dir: pickFolder,
+//   });
+// };
 
 function Index() {
   const [response, setResponse] = useState({ code: {}, lang: "json" });
@@ -149,7 +173,7 @@ function Index() {
             <Tabs />
           </div>
           <div className="px-3 ml-auto ">
-            <NavActions onClick={async () => {}} />
+            <NavActions />
           </div>
         </header>
         <div className="grid grid-cols-1 gap-4 px-2 overflow-hidden md:grid-cols-[1fr_1fr]">
@@ -173,15 +197,15 @@ function Index() {
             className={`h-[650px] relative ${theme === "dark" ? "[--rjv_object_key:white]" : "[--rjv_object_key:black] bg-neutral-300/75 "} mt-1 p-2 border border-dashed  shadow-sm rounded-lg relative overflow-scroll max-h-[650px] scrollbar-hide ${isPending ? "flex justify-center" : "block"}`}
           >
             {data && (
-              <div className="absolute top-0 flex items-center w-full mt-2 rounded-sm gap-x-2 bg-neutral-800/70">
+              <div className="absolute top-0 flex px-1 items-center w-[calc(100%-15px)] mt-2 rounded-sm gap-x-2 bg-neutral-800/70">
                 <div className="flex items-center">
-                  <span className="text-sm text-neutral-500">
-                    {data.status}
+                  <span className="text-sm text-neutral-400">
+                    {data.status} {data.status === 200 ? "Ok" : ""}
                   </span>
                 </div>
                 <div className="flex items-center">
                   <Dot className="h-7" />
-                  <span className="text-sm text-neutral-500">
+                  <span className="text-sm text-neutral-400">
                     {data.elapsed_time}ms
                   </span>
                 </div>
@@ -236,10 +260,9 @@ const ResponseTabContent = (props: {
       quotesOnKeys={false}
       theme="twilight"
       displayObjectSize={false}
-      indentWidth={5}
+      indentWidth={3}
       style={{
         ...props.style,
-        // paddingLeft: "3px",
         fontSize: "13px",
         fontFamily: "Geist, sans-serif",
         background: "transparent",

@@ -1,19 +1,3 @@
-import {
-  ArrowDown,
-  ArrowUp,
-  Copy,
-  CornerUpLeft,
-  CornerUpRight,
-  FileText,
-  GalleryVerticalEnd,
-  LineChart,
-  Link,
-  MoreHorizontal,
-  Settings2,
-  Trash2,
-} from "lucide-react";
-import { useState } from "react";
-
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -29,9 +13,20 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import {
+  ArrowDown,
+  ArrowUp,
+  Copy,
+  CornerUpLeft,
+  CornerUpRight,
+  GalleryVerticalEnd,
+  LineChart,
+  Link,
+  MoreHorizontal,
+  Settings2,
+} from "lucide-react";
+import { useState } from "react";
 import { ModeToggle } from "./mode-toggle";
-// import { invoke } from "@tauri-apps/api/core";
-// import { open } from "@tauri-apps/plugin-dialog";
 
 const data = [
   [
@@ -49,28 +44,12 @@ const data = [
       label: "Source mode",
       icon: Settings2,
     },
-    // {
-    //   label: "Turn into wiki",
-    //   icon: FileText,
-    // },
   ],
   [
     {
       label: "Copy Link",
       icon: Link,
     },
-    {
-      label: "Duplicate",
-      icon: Copy,
-    },
-    {
-      label: "Move to",
-      icon: CornerUpRight,
-    },
-    // {
-    //   label: "Move to Trash",
-    //   icon: Trash2,
-    // },
   ],
   [
     {
@@ -85,14 +64,10 @@ const data = [
       label: "Version History",
       icon: GalleryVerticalEnd,
     },
-    // {
-    //   label: "Show delete pages",
-    //   icon: Trash,
-    // },
   ],
 ];
 
-export function NavActions(props: { onClick: () => void }) {
+export function NavActions() {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
