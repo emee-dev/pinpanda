@@ -10,10 +10,13 @@ interface TabProps {
 }
 
 const Tab = (props: TabProps) => {
-  const { popActiveTab } = useFileTreeStore();
+  const { popActiveTab, pushActiveTab, setCurrent } = useFileTreeStore();
 
   return (
-    <div className="flex items-center px-1 w-[11rem] max-w-[12rem] text-sm rounded-sm h-7 bg-primary-foreground/10  group cursor-pointer gap-x-1 border">
+    <div
+      className="flex items-center px-1 w-[11rem] max-w-[12rem] text-sm rounded-sm h-7 bg-neutral-700/80 dark:bg-primary-foreground/10  group cursor-pointer gap-x-1 border "
+      onClick={() => setCurrent(props.file.id)}
+    >
       <span className="w-8 text-xs text-yellow-300">
         {props.method.toUpperCase()}
       </span>{" "}
@@ -21,7 +24,7 @@ const Tab = (props: TabProps) => {
         {props.request_pathname}
       </span>
       <X
-        className="h-4 ml-auto bg-black rounded-sm group-hover:block"
+        className="h-4 ml-auto text-white rounded-sm bg-black/50 group-hover:block"
         onClick={() => {
           popActiveTab(props.file.id);
         }}
@@ -42,7 +45,8 @@ const Tabs = () => {
         return (
           <Tab
             key={crypto.randomUUID()}
-            method="POST"
+            // method="POST"
+            method="http"
             request_pathname={item.name}
             requestid="12"
             file={item}

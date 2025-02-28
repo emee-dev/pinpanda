@@ -1,6 +1,8 @@
 # Worm - Privacy-Focused, Offline-First API Client
 
-<!-- ![Worm App](product-image-or-gif) -->
+<div align="center">
+  <img src="./public/landing.png" width="600" height="auto" />
+</div>
 
 ## Why Another HTTP Client?
 

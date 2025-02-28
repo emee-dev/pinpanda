@@ -214,6 +214,7 @@ const Tree = ({
           key={entity.id}
           value={`${entity.name}_${entity.id}`}
           onClick={(e) => handleItemSelect(e, entity)}
+          fileIcon={entity.fileicon}
         >
           <p>{entity.name}</p>
         </File>

@@ -1,3 +1,4 @@
+import { FileCog, Settings, Wrench } from "lucide-react";
 import { create } from "zustand";
 
 export type FileTree = {
@@ -19,17 +20,33 @@ type FileTreeState = {
   popActiveTab: (fileId: string) => void;
 };
 
+const configContent = `
+# There is no config for now, but it should look like this.
+{
+  "$schema": "https://demoapi.dev/schema.json",
+  "version": "v1",
+  "project_name": "Stripe API",
+  "collection_folder": "./some_path/collections"
+}
+`;
+
+const dotenvContent = `
+# There will be dotenv support - (coming soon)
+BASEURL = "http://localhost:3000/api"
+API_KEY = $BASE_URL
+
+`;
+
 const setUpContent = () => {
   const map = new Map();
 
   const arr = [
-    { id: "29", content: `API_KEY=123\nOPENAPI="api_key123"` },
-    { id: "24", content: `BASE_URL="localhost:3000/api"\nAPI_KEY=900` },
+    { id: "24", content: dotenvContent },
     {
       id: "34",
       content: `BASE_URL="https://api.vercel.com/api"\nAPI_KEY="custom_api"`,
     },
-    { id: "44", content: `null` },
+    { id: "44", content: configContent },
   ];
 
   arr.forEach((item) => map.set(item.id, item.content));
@@ -38,13 +55,26 @@ const setUpContent = () => {
 };
 
 export const useFileTreeStore = create<FileTreeState>((set) => ({
-  // fileContents: new Map<string, string>(),
   contents: setUpContent(),
   files: [
-    { id: "29", isSelectable: true, name: ".env.development" },
-    { id: "24", isSelectable: true, name: ".env.local" },
-    { id: "34", isSelectable: true, name: ".env.production" },
-    { id: "44", isSelectable: true, name: "worm.config.json" },
+    {
+      id: "24",
+      isSelectable: true,
+      name: ".env.local",
+      fileicon: <FileCog className="w-4 h-4" />,
+    },
+    {
+      id: "34",
+      isSelectable: true,
+      name: ".env.production",
+      fileicon: <FileCog className="w-4 h-4" />,
+    },
+    {
+      id: "44",
+      isSelectable: true,
+      name: "worm.config.json",
+      fileicon: <Settings className="w-4 h-4" />,
+    },
   ],
   activeTabs: [],
   currentFile: null,

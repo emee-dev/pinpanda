@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/sidebar";
 import { open } from "@tauri-apps/plugin-dialog";
 import { createFileRoute } from "@tanstack/react-router";
+import { toast } from "sonner";
 import { invoke } from "@tauri-apps/api/core";
 import {
   Dot,
@@ -101,6 +102,7 @@ function Index() {
   const [response, setResponse] = useState({ code: {}, lang: "json" });
   const { theme } = useTheme();
   const [tomlCode, setToml] = useState("");
+  const [disableSend, setDisableSend] = useState(false);
   const { mutate, isPending, error, data } = useMutation<Response>({
     mutationKey: [""],
     mutationFn: async () => {
@@ -117,31 +119,64 @@ function Index() {
 
         return Promise.resolve(request);
       } catch (error: any) {
+        const msg = error.message
+          ? error.message
+          : "Something went wrong. Please try again.";
+
+        toast("An error occurred", {
+          description: typeof error === "string" ? error : msg,
+          action: {
+            label: "Retry",
+            onClick: () => mutate(),
+          },
+        });
         console.log("Error:", error);
         return Promise.reject(error);
       }
     },
   });
-  const { currentFile, contents } = useFileTreeStore();
+  const { currentFile, contents, push } = useFileTreeStore();
 
+  // Initializes a demo file
   useEffect(() => {
-    setToml(code.trim());
+    const fileId = crypto.randomUUID();
+    push({
+      id: fileId,
+      isSelectable: true,
+      name: "syntax_demo.toml",
+    });
+
+    contents.set(fileId, code.trim());
   }, []);
 
+  // Sets the current file
   useEffect(() => {
     if (currentFile) {
       const currentContent = contents.get(currentFile.id);
-      console.log("currentFile", currentContent);
       setToml(currentContent as string);
     }
   }, [currentFile]);
 
+  //  Handles file editor edits
   useEffect(() => {
     if (tomlCode.trim() && currentFile) {
       const currentFileId = currentFile.id;
       contents.set(currentFileId, tomlCode);
     }
   }, [tomlCode, currentFile]);
+
+  useEffect(() => {
+    if (currentFile) {
+      if (!currentFile.name.endsWith(".toml")) {
+        setDisableSend(true);
+        return;
+      }
+
+      setDisableSend(false);
+    } else {
+      setDisableSend(false);
+    }
+  }, [currentFile]);
 
   useEffect(() => {
     if (data) {
@@ -181,7 +216,8 @@ function Index() {
             <div className="flex w-full p-1">
               <Button
                 size="icon"
-                className="w-12 ml-auto h-7"
+                className="w-12 ml-auto h-7 disabled:bg-neutral-400"
+                disabled={disableSend}
                 onClick={() => mutate()}
               >
                 <SendIcon />
@@ -200,7 +236,7 @@ function Index() {
               <div className="absolute top-0 flex px-1 items-center w-[calc(100%-15px)] mt-2 rounded-sm gap-x-2 bg-neutral-800/70">
                 <div className="flex items-center">
                   <span className="text-sm text-neutral-400">
-                    {data.status} {data.status === 200 ? "Ok" : ""}
+                    {data.status} {data.status === 200 ? "OK" : ""}
                   </span>
                 </div>
                 <div className="flex items-center">
