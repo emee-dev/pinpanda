@@ -37,7 +37,7 @@ Before you begin, ensure you have installed the necessary tools:
 
 - [Rust & Cargo](https://rustup.rs/)
 - [Node.js](https://nodejs.org/en)
-- Tauri CLI: `cargo install tauri-cli`
+- Tauri CLI: `pnpm add -D @tauri-apps/cli`
 
 ### Clone the Repository
 
@@ -45,16 +45,29 @@ Before you begin, ensure you have installed the necessary tools:
 git clone https://github.com/emee-dev/useworm
 ```
 
-### Install Dependencies
+### CD into directory
 
 ```sh
-npm install
+cd useworm
+
+```
+
+### Install Dependencies
+
+I recommend `pnpm` but `npm` will work as well.
+
+```sh
+# Install pnpm globally
+npm install -g pnpm
+
+# Intall dependencies
+pnpm install
 ```
 
 ### Run Worm in Development Mode
 
 ```sh
-cargo tauri dev
+pnpm tauri dev
 ```
 
 You are now ready to start developing!
