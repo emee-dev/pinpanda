@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "worm",
+  "productName": "panda",
   "version": "0.1.0",
-  "identifier": "com.worm.http",
+  "identifier": "com.panda.http",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "worm",
+        "title": "Panda Http",
         "width": 800,
         "height": 600,
         "minWidth": 997,
@@ -36,29 +36,14 @@
   },
   "plugins": {
     "cli": {
-      "description": "Worm cli interface",
+      "description": "Panda cli interface",
       "args": [
         {
           "short": "v",
           "name": "verbose",
           "description": "Verbosity level"
         }
-      ],
-      "subcommands": {
-        "run": {
-          "description": "Run the application",
-          "args": [
-            {
-              "name": "debug",
-              "description": "Run application in debug mode"
-            },
-            {
-              "name": "release",
-              "description": "Run application in release mode"
-            }
-          ]
-        }
-      }
+      ]
     }
   }
 }

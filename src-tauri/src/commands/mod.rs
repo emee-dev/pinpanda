@@ -1,4 +1,5 @@
 use glob::glob;
+use reqwest::header::CONTENT_TYPE;
 use reqwest::multipart;
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
@@ -26,6 +27,7 @@ pub struct RequestResponse {
     elapsed_time: u128,
     text_response: Option<String>,
     headers: Option<HashMap<String, String>>,
+    content_type: String,
 }
 
 #[derive(Deserialize, Clone, Debug, Serialize)]
@@ -330,6 +332,8 @@ pub async fn cmd_http_request(toml_schema: &str) -> Result<RequestResponse, Stri
 
     let status = response.status().as_u16();
     let headers = response.headers().clone();
+    let response_type = response.headers().clone();
+    let content_type = response_type.get(CONTENT_TYPE).unwrap();
 
     for item in headers {
         let key = item.0.unwrap().to_string();
@@ -352,6 +356,10 @@ pub async fn cmd_http_request(toml_schema: &str) -> Result<RequestResponse, Stri
         headers: Some(response_headers),
         text_response: Some(text),
         elapsed_time: elapsed_time.as_millis(),
+        content_type: content_type
+            .to_str()
+            .expect("should be a valid content type")
+            .to_string(),
     };
 
     // Here we can run post-request scripts

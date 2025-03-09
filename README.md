@@ -1,4 +1,4 @@
-# Worm - Privacy-Focused, Offline-First API Client
+# Panda - Privacy-Focused, Offline-First API Client
 
 <div align="center">
   <img src="./public/landing.png" width="600" height="auto" />
@@ -31,7 +31,7 @@ Simply download and execute the installer, available on the [releases](https://g
 
 ---
 
-## Developing with Worm
+## Developing with Panda
 
 Before you begin, ensure you have installed the necessary tools:
 

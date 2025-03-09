@@ -3,5 +3,5 @@
 
 #[tokio::main]
 async fn main() {
-    worm_lib::run().await
+    panda_lib::run().await
 }

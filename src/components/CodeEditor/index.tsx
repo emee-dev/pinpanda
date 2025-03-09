@@ -1,22 +1,18 @@
 import {
   autocompletion,
-  closeBrackets,
   Completion,
   CompletionSource,
 } from "@codemirror/autocomplete";
-import { defaultKeymap, history, indentWithTab } from "@codemirror/commands";
-import { indentOnInput } from "@codemirror/language";
+import { defaultKeymap, indentWithTab } from "@codemirror/commands";
 import { EditorState } from "@codemirror/state";
 import {
   Command,
   EditorView,
   highlightActiveLine,
   keymap,
-  rectangularSelection,
 } from "@codemirror/view";
 import { tags as t } from "@lezer/highlight";
 import { createTheme, CreateThemeOptions } from "@uiw/codemirror-themes";
-import { Extension } from "@uiw/react-codemirror";
 import { basicSetup } from "codemirror";
 import { useEffect, useRef } from "react";
 import "./CodeEditor.css";
@@ -53,11 +49,6 @@ const myTheme = createTheme({
 } as CreateThemeOptions);
 
 const handleCtrlS: Command = (_target: EditorView) => {
-  // console.log("_target", _target);
-
-  // let textBefore = _target.contentDOM.innerText.trim();
-
-  // _target.contentDOM.innerText = textBefore += "\nHello";
   console.log("Ctrl S Shortcut Pressed!");
 
   return true;
@@ -68,23 +59,6 @@ const editor = EditorView.baseTheme({
     display: "none",
   },
 });
-
-const extensions = [
-  toml(),
-  history(),
-  EditorState.allowMultipleSelections.of(true),
-  indentOnInput(),
-  closeBrackets(),
-  rectangularSelection(),
-  keymap.of([
-    {
-      key: "Ctrl-s",
-      run: handleCtrlS,
-    },
-  ]),
-  editor,
-  highlightActiveLine(),
-] as Extension[];
 
 const completions: Completion[] = [
   // { label: "panic", type: "keyword" },
@@ -123,7 +97,14 @@ export default function CodeEditor(props: {
       extensions: [
         toml(),
         basicSetup,
-        keymap.of([...defaultKeymap, indentWithTab]),
+        keymap.of([
+          ...defaultKeymap,
+          indentWithTab,
+          {
+            key: "Ctrl-s",
+            run: handleCtrlS,
+          },
+        ]),
         autocompletion({ override: [myCompletions] }),
         EditorView.updateListener.of((v) => {
           const newText = v.state.doc.toString();
@@ -131,7 +112,9 @@ export default function CodeEditor(props: {
             props.onChange(newText);
           }
         }),
+        EditorView.lineWrapping,
         myTheme,
+        highlightActiveLine(),
       ],
     });
 
@@ -160,6 +143,5 @@ export default function CodeEditor(props: {
     }
   }, [props.defaultText]);
 
-  // return <div ref={editorRef} className="scrollbar-hide" />;
   return <div ref={editorRef} className="overflow-x-hidden" />;
 }

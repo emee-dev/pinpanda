@@ -73,6 +73,7 @@ type Response = {
   headers: Record<string, unknown> | null;
   text_response: string | null;
   elapsed_time: number;
+  content_type: string;
 };
 
 const isJsonStr = <T extends string | null>(str: T) => {
@@ -174,12 +175,14 @@ function Index() {
 
       setDisableSend(false);
     } else {
-      setDisableSend(false);
+      setDisableSend(true);
     }
   }, [currentFile]);
 
   useEffect(() => {
     if (data) {
+      console.log("data", data);
+
       const response = data.text_response;
       if (!isJsonStr(response)) {
         return setResponse({
@@ -199,8 +202,8 @@ function Index() {
     <SidebarProvider defaultOpen={false} className="relative">
       <AppSidebar />
 
-      <SidebarInset className={`h-screen overflow-hidden `}>
-        <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12 ">
+      <SidebarInset className={`h-screen relative`}>
+        <header className=" flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12 sticky top-0 w-full">
           <div className="flex items-center gap-2 px-4 transition-all">
             <SidebarTrigger />
             <Separator orientation="vertical" className="h-4 mr-2" />
@@ -211,9 +214,10 @@ function Index() {
             <NavActions />
           </div>
         </header>
-        <div className="grid grid-cols-1 gap-4 px-2 overflow-hidden md:grid-cols-[1fr_1fr]">
-          <div className="h-[650px] mt-1  gap-y-2 relative overflow-scroll font-geist scrollbar-hide rounded-md max-h-[650px] ">
-            <div className="flex w-full p-1">
+
+        <div className="grid grid-cols-1 gap-4 px-2 pb-3 overflow-hidden md:grid-cols-2 scrollbar-hide">
+          <div className="relative mt-1 overflow-y-scroll rounded-md gap-y-2 font-geist scrollbar-hide">
+            <div className="absolute flex w-full p-1">
               <Button
                 size="icon"
                 className="w-12 ml-auto h-7 disabled:bg-neutral-400"
@@ -223,14 +227,16 @@ function Index() {
                 <SendIcon />
               </Button>
             </div>
-            <CodeEditor
-              defaultText={tomlCode}
-              onChange={(val) => setToml(val)}
-            />
+            <div className="mt-10">
+              <CodeEditor
+                defaultText={tomlCode}
+                onChange={(val) => setToml(val)}
+              />
+            </div>
           </div>
 
           <div
-            className={`h-[650px] relative ${theme === "dark" ? "[--rjv_object_key:white]" : "[--rjv_object_key:black] bg-neutral-300/75 "} mt-1 p-2 border border-dashed  shadow-sm rounded-lg relative overflow-scroll max-h-[650px] scrollbar-hide ${isPending ? "flex justify-center" : "block"}`}
+            className={`relative ${theme === "dark" ? "[--rjv_object_key:white]" : "[--rjv_object_key:black] bg-neutral-300/75 "} mt-1 p-2 border border-dashed  shadow-sm rounded-lg relative overflow-scroll scrollbar-hide ${isPending ? "flex justify-center" : "block"}`}
           >
             {data && (
               <div className="absolute top-0 flex px-1 items-center w-[calc(100%-15px)] mt-2 rounded-sm gap-x-2 bg-neutral-800/70">
