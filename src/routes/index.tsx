@@ -1,6 +1,8 @@
-import { AppSidebar } from "@/components/app-sidebar";
+import { AppSidebar } from "@/components/Sidebar";
 import CodeEditor from "@/components/CodeEditor";
 import { NavActions } from "@/components/nav_actions";
+import Tabs from "@/components/Tabs";
+import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -8,28 +10,17 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { open } from "@tauri-apps/plugin-dialog";
+import { useFileTreeStore } from "@/hooks/use-filetree";
+import { formatTOMl } from "@/lib/toml";
+import { useMutation } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { toast } from "sonner";
 import { invoke } from "@tauri-apps/api/core";
-import {
-  Dot,
-  Hourglass,
-  Lightbulb,
-  Loader,
-  Rotate3DIcon,
-  SendIcon,
-} from "lucide-react";
+import { Dot, Loader, SendIcon } from "lucide-react";
 import { CSSProperties, useEffect, useState } from "react";
 import RJV from "react-json-view";
 import { parse, stringify } from "smol-toml";
-import { useTheme } from "@/components/theme-provider";
-import { formatTOMl } from "@/lib/toml";
-import { X } from "lucide-react";
+import { toast } from "sonner";
 import "./rjv.css";
-import Tabs from "@/components/Tabs";
-import { useMutation } from "@tanstack/react-query";
-import { useFileTreeStore } from "@/hooks/use-filetree";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -99,6 +90,21 @@ const isJsonStr = <T extends string | null>(str: T) => {
 //   });
 // };
 
+type PandaCollections = {
+  item_name: string;
+  item_path: string;
+  item_content: string;
+};
+
+const getAppMode = async () => {
+  // let res = (await invoke("get_app_mode")) as "cli_gui" | "desktop_gui";
+  const collections = (await invoke("get_collections", {
+    cwd: `C:\\Users\\DELL\\Desktop\\Panda collections`,
+  })) as PandaCollections[];
+  // console.log("App Mode: ", res);
+  console.log("collections ", JSON.stringify(collections, null, 3));
+};
+
 function Index() {
   const [response, setResponse] = useState({ code: {}, lang: "json" });
   const { theme } = useTheme();
@@ -136,39 +142,42 @@ function Index() {
       }
     },
   });
-  const { currentFile, contents, push } = useFileTreeStore();
+
+  const { createFile, activeFile, updateFileContentById } = useFileTreeStore();
 
   // Initializes a demo file
   useEffect(() => {
     const fileId = crypto.randomUUID();
-    push({
-      id: fileId,
-      isSelectable: true,
-      name: "syntax_demo.toml",
-    });
 
-    contents.set(fileId, code.trim());
+    createFile({
+      id: fileId,
+      name: "syntax_demo.toml",
+      type: "file",
+      content: code.trim(),
+      isSelectable: true,
+    });
   }, []);
 
   // Sets the current file
   useEffect(() => {
-    if (currentFile) {
-      const currentContent = contents.get(currentFile.id);
-      setToml(currentContent as string);
+    if (activeFile) {
+      setToml(activeFile.content as string);
     }
-  }, [currentFile]);
+  }, [activeFile]);
 
-  //  Handles file editor edits
+  // Updates file content when code editor content changes
   useEffect(() => {
-    if (tomlCode.trim() && currentFile) {
-      const currentFileId = currentFile.id;
-      contents.set(currentFileId, tomlCode);
+    const editorCode = tomlCode?.trim();
+
+    if (editorCode && activeFile) {
+      updateFileContentById(activeFile.id, editorCode);
     }
-  }, [tomlCode, currentFile]);
+  }, [tomlCode, activeFile]);
 
+  // Handle send button state
   useEffect(() => {
-    if (currentFile) {
-      if (!currentFile.name.endsWith(".toml")) {
+    if (activeFile) {
+      if (!activeFile.name.endsWith(".toml")) {
         setDisableSend(true);
         return;
       }
@@ -177,7 +186,7 @@ function Index() {
     } else {
       setDisableSend(true);
     }
-  }, [currentFile]);
+  }, [activeFile]);
 
   useEffect(() => {
     if (data) {

@@ -16,9 +16,7 @@ import {
 import {
   ArrowDown,
   ArrowUp,
-  Copy,
   CornerUpLeft,
-  CornerUpRight,
   GalleryVerticalEnd,
   LineChart,
   Link,

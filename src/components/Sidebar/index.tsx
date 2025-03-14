@@ -1,5 +1,13 @@
-import { NavUser } from "@/components/nav-user";
 import { TeamSwitcher } from "@/components/team-switcher";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   Sidebar,
   SidebarContent,
@@ -24,23 +32,12 @@ import {
   Command,
   FilePlus,
   GalleryVerticalEnd,
-  Plus,
 } from "lucide-react";
-import React, { useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { DropdownMenuLabel } from "./ui/dropdown-menu";
-import { Input } from "./ui/input";
+import React, { FormEvent, useState } from "react";
 import { toast } from "sonner";
-import { Label } from "./ui/label";
-import { Button } from "./ui/button";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 const meta = {
   user: {
@@ -69,8 +66,59 @@ const meta = {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { open } = useSidebar();
-  const { push, contents, setCurrent, pushActiveTab } = useFileTreeStore();
+  const { createFile, addNewTab, setActiveFile } = useFileTreeStore();
   const [dialogOpen, dialogOpenChange] = useState(false);
+
+  const handleFormSubmit = (ev: FormEvent<HTMLFormElement>) => {
+    ev.preventDefault();
+
+    let form = new FormData(ev.currentTarget);
+
+    let file_name = form.get("file_name") as string;
+
+    if (!file_name.trim()) {
+      return toast("Error creating a new file.", {
+        description: "Please provide a valid filename with ext (.toml)",
+      });
+    }
+
+    const fileId = crypto.randomUUID();
+
+    const file = {
+      id: fileId,
+      isSelectable: true,
+      name: file_name.trim() + ".toml",
+      content: `[get]\nname = "get all products"\nurl = "your_api_url"`,
+    };
+
+    createFile({
+      id: file.id,
+      name: file.name,
+      type: "file",
+      content: file.content,
+      parentId: undefined,
+      isSelectable: true,
+    });
+
+    // Inserts a new tab
+    addNewTab({
+      id: file.id,
+      type: "file",
+      name: file.name,
+      content: file.content,
+      isSelectable: true,
+    });
+
+    setActiveFile({
+      id: file.id,
+      type: "file",
+      name: file.name,
+      content: file.content,
+      isSelectable: true,
+    });
+
+    dialogOpenChange(false);
+  };
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -95,39 +143,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   </DialogHeader>
                   <form
                     className="grid gap-4 py-4"
-                    onSubmit={(ev) => {
-                      ev.preventDefault();
-
-                      let form = new FormData(ev.currentTarget);
-
-                      let file_name = form.get("file_name") as string;
-
-                      if (!file_name.trim()) {
-                        return toast("Error creating a new file.", {
-                          description:
-                            "Please provide a valid filename with ext (.toml)",
-                        });
-                      }
-
-                      const fileId = crypto.randomUUID();
-
-                      contents.set(
-                        fileId,
-                        `[get]\nname="get all products"\nurl="your_api_url"`
-                      );
-
-                      const file = {
-                        id: fileId,
-                        isSelectable: true,
-                        name: file_name.trim() + ".toml",
-                      };
-
-                      push(file);
-
-                      setCurrent(fileId);
-                      pushActiveTab(file);
-                      dialogOpenChange(false);
-                    }}
+                    onSubmit={(ev) => handleFormSubmit(ev)}
                   >
                     <div className="grid gap-2">
                       <Label htmlFor="file_name">Filename</Label>
@@ -166,7 +182,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarGroup>
       </SidebarContent>
       {/* Just an empty content */}
-      <SidebarContent className={open ? "hidden" : "open"} />
+      <SidebarContent className={open ? "hidden" : "block"} />
 
       <SidebarFooter>{/* <NavUser user={meta.user} /> */}</SidebarFooter>
       <SidebarRail />
@@ -180,19 +196,18 @@ type SelectEvent = React.MouseEvent<
 >;
 
 const Tree = ({
-  folders,
   root_provider = false,
 }: {
   folders: FileTree[];
   root_provider?: boolean;
 }) => {
-  const { files, pushActiveTab, setCurrent } = useFileTreeStore();
-  const handleItemSelect = (e: SelectEvent, item: FileTree) => {
-    e.stopPropagation();
-    e.preventDefault();
+  const { fileTree, addNewTab, setActiveFile } = useFileTreeStore();
+  const handleItemSelect = (ev: SelectEvent, item: FileTree) => {
+    ev.stopPropagation();
+    ev.preventDefault();
 
-    pushActiveTab(item);
-    setCurrent(item.id);
+    addNewTab(item);
+    setActiveFile(item);
   };
 
   const renderTree = (entities: FileTree[]) =>
@@ -225,11 +240,11 @@ const Tree = ({
     <TreeProvider
       className="p-2 overflow-hidden rounded-md h-60 bg-background"
       initialSelectedId="carousel.tsx_7"
-      elements={files}
+      elements={fileTree}
     >
-      {renderTree(files)}
+      {renderTree(fileTree)}
     </TreeProvider>
   ) : (
-    <>{renderTree(files)}</>
+    <>{renderTree(fileTree)}</>
   );
 };

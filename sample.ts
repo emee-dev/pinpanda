@@ -1,61 +1,20 @@
-import { FileCog, Settings } from "lucide-react";
 import { create } from "zustand";
-
-const configContent = `
-# There is no config for now, but it should look like this.
-{
-  "$schema": "https://demoapi.dev/schema.json",
-  "version": "v1",
-  "project_name": "Stripe API",
-  "collection_folder": "./some_path/collections"
-}
-`;
-
-const dotenvContent = `
-# There will be dotenv support - (coming soon)
-BASEURL = "http://localhost:3000/api"
-API_KEY = $BASE_URL
-`;
-
-const setUpContent = () => {
-  const map = new Map();
-
-  const arr = [
-    { id: "24", content: dotenvContent },
-    {
-      id: "34",
-      content: `BASE_URL="https://api.vercel.com/api"\nAPI_KEY="custom_api"`,
-    },
-    { id: "44", content: configContent },
-  ];
-
-  arr.forEach((item) => map.set(item.id, item.content));
-
-  return map;
-};
 
 type Item = {
   id: string;
-  name: string;
+  item_name: string;
   type: "file" | "folder";
   content?: string | null;
-  children?: Item[];
+  children?: Item[] | null;
   parentId?: string;
-  fileicon?: React.ReactNode;
-  isSelectable: boolean;
 };
 
-export type FileTree = Item;
+type FileTree = Item;
 
 type File = string;
-type ActiveFile = Pick<
-  Item,
-  "id" | "name" | "content" | "type" | "fileicon" | "isSelectable"
->;
-type Tab = Pick<
-  Item,
-  "id" | "name" | "content" | "type" | "fileicon" | "isSelectable"
->;
+type FileItem = Pick<Item, "id" | "item_name" | "content">;
+type ActiveFile = Pick<Item, "id" | "item_name" | "content">;
+type Tab = Pick<Item, "id" | "item_name" | "content">;
 
 type FileTreeState = {
   tabs: Tab[];
@@ -64,15 +23,45 @@ type FileTreeState = {
   fileContents: Map<string, File>;
   createFile: (file: FileTree) => void;
   removeFile: (file: FileTree) => void;
-
+  editFileById: (fileId: string, args: File) => void;
   // Tabs
-  addNewTab: (file: ActiveFile) => void;
+  insertTab: (file: ActiveFile) => void;
   removeTab: (fileId: string) => void;
-  setActiveFile: (file: ActiveFile) => void;
-
+  setActiveTab: (file: ActiveFile) => void;
   // Editor
-  updateFileContentById: (fileId: string, args: File) => void;
+  setFileContent: (fileId: string, content: string) => void;
+  // getFile: (fileId: string) => void;
 };
+
+const items: FileTree[] = [
+  {
+    id: "1",
+    item_name: "transactions",
+    type: "folder",
+    children: [
+      {
+        id: "3",
+        item_name: "get transactions.toml",
+        type: "file",
+      },
+      {
+        id: "4",
+        item_name: "delete transactions.toml",
+        type: "file",
+      },
+      {
+        id: "5",
+        item_name: "banking",
+        type: "file",
+      },
+    ],
+  },
+  {
+    id: "2",
+    item_name: "get products.toml",
+    type: "file",
+  },
+];
 
 const traverse = (
   items: FileTree[],
@@ -113,50 +102,41 @@ const traverse = (
   return items;
 };
 
+let add = traverse(items, {
+  // parentId: "1",
+  operation: "add",
+  data: {
+    id: "4",
+    item_name: "spacial.toml",
+    type: "file",
+  },
+});
+
+let ops = traverse(add, {
+  // parentId: "2",
+  operation: "remove",
+  data: {
+    id: "2",
+  },
+});
+
+console.dir(ops, { depth: Infinity });
+
 export const useFileTreeStore = create<FileTreeState>((set) => ({
   tabs: [],
-  fileTree: [
-    {
-      id: "24",
-      isSelectable: true,
-      name: ".env.local",
-      fileicon: <FileCog className="w-4 h-4" />,
-      type: "file",
-    },
-    {
-      id: "34",
-      isSelectable: true,
-      name: ".env.production",
-      fileicon: <FileCog className="w-4 h-4" />,
-      type: "file",
-    },
-    {
-      id: "44",
-      isSelectable: true,
-      name: "worm.config.json",
-      fileicon: <Settings className="w-4 h-4" />,
-      type: "file",
-    },
-  ],
+  fileTree: [],
   activeFile: null,
-  fileContents: setUpContent(),
+  fileContents: new Map<string, File>(),
   // Filetree
   createFile: (file: Item) =>
     set((state) => {
       const tree = state.fileTree;
-      const previousMap = state.fileContents;
 
       const ops = traverse(tree, {
         parentId: file.parentId,
         operation: "add",
         data: file,
       });
-
-      if (file.content) {
-        let map = previousMap.set(file.id, file.content);
-
-        return { fileTree: ops, fileContents: map };
-      }
 
       return { fileTree: ops };
     }),
@@ -172,15 +152,18 @@ export const useFileTreeStore = create<FileTreeState>((set) => ({
 
       return { fileTree: ops };
     }),
+  editFileById: (fileId, args) =>
+    set((state) => {
+      let previousMap = state.fileContents;
+
+      let file = previousMap.set(fileId, args);
+
+      return { fileContents: file };
+    }),
 
   // Tabs
-  setActiveFile: (file) =>
-    set((state) => {
-      let content = state.fileContents.get(file.id) || "";
-
-      return { activeFile: { ...file, content } };
-    }),
-  addNewTab: (file) =>
+  setActiveTab: (file) => set((state) => ({ activeFile: file })),
+  insertTab: (file) =>
     set((state) => {
       const previousTabs = state.tabs;
 
@@ -200,12 +183,24 @@ export const useFileTreeStore = create<FileTreeState>((set) => ({
     }),
 
   // Editor
-  updateFileContentById: (fileId, args) =>
+  setFileContent: (fileId, content) =>
     set((state) => {
-      let previousMap = state.fileContents;
+      const previousMap = state.fileContents;
 
-      let file = previousMap.set(fileId, args);
+      let map = previousMap.set(fileId, content);
 
-      return { fileContents: file };
+      return { fileContents: map };
     }),
+  // getFile: (fileId) =>
+  //   set((state) => {
+  //     const contentMap = state.fileContents;
+
+  //     let content = contentMap.get(fileId);
+
+  //     if (!content) {
+  //       return null;
+  //     }
+
+  //     return content;
+  //   }),
 }));
