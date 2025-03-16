@@ -1,4 +1,20 @@
-import { TeamSwitcher } from "@/components/team-switcher";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarRail,
+  useSidebar,
+} from "@/components/ui/sidebar";
+import { useFileTreeStore } from "@/hooks/use-filetree";
+import { Check, FilePlus } from "lucide-react";
+import React, { FormEvent, useState } from "react";
+import { toast } from "sonner";
+import { EnvSwitcher } from "@/components/env-switcher";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -8,58 +24,26 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarRail,
-  useSidebar,
-} from "@/components/ui/sidebar";
-import {
-  CollapseButton,
-  File,
-  Folder,
-  Tree as TreeProvider,
-} from "@/components/ui/tree-view-api";
-import { FileTree, useFileTreeStore } from "@/hooks/use-filetree";
-import {
-  AudioWaveform,
-  Command,
-  FilePlus,
-  GalleryVerticalEnd,
-} from "lucide-react";
-import React, { FormEvent, useState } from "react";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import FIleTree from "./tree";
 
 const meta = {
-  user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
-  teams: [
+  environments: [
     {
-      name: "development",
-      logo: GalleryVerticalEnd,
-      plan: "Enterprise",
+      name: "Development",
+      logo: Check,
+      isSelected: true,
     },
     {
-      name: "testing",
-      logo: AudioWaveform,
-      plan: "Startup",
+      name: "Testing",
+      logo: Check,
+      isSelected: false,
     },
     {
-      name: "production",
-      logo: Command,
-      plan: "Free",
+      name: "Production",
+      logo: Check,
+      isSelected: false,
     },
   ],
 };
@@ -121,14 +105,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   };
 
   return (
-    <Sidebar collapsible="icon" {...props}>
+    <Sidebar {...props}>
       <SidebarHeader>
-        <TeamSwitcher teams={meta.teams} />
+        <EnvSwitcher environments={meta.environments} />
       </SidebarHeader>
       <SidebarContent className={open ? "block" : "hidden"}>
         <SidebarGroup>
           <SidebarGroupLabel className="flex items-center">
-            Files{" "}
+            <span className="font-geist">Files</span>
             <div className="ml-auto">
               <Dialog open={dialogOpen} onOpenChange={dialogOpenChange}>
                 <DialogTrigger asChild>
@@ -176,75 +160,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              <Tree folders={[]} root_provider />
+              <FIleTree folders={[]} root_provider />
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      {/* Just an empty content */}
       <SidebarContent className={open ? "hidden" : "block"} />
-
-      <SidebarFooter>{/* <NavUser user={meta.user} /> */}</SidebarFooter>
       <SidebarRail />
     </Sidebar>
   );
 }
-
-type SelectEvent = React.MouseEvent<
-  HTMLButtonElement | HTMLDivElement,
-  MouseEvent
->;
-
-const Tree = ({
-  root_provider = false,
-}: {
-  folders: FileTree[];
-  root_provider?: boolean;
-}) => {
-  const { fileTree, addNewTab, setActiveFile } = useFileTreeStore();
-  const handleItemSelect = (ev: SelectEvent, item: FileTree) => {
-    ev.stopPropagation();
-    ev.preventDefault();
-
-    addNewTab(item);
-    setActiveFile(item);
-  };
-
-  const renderTree = (entities: FileTree[]) =>
-    entities.map((entity) =>
-      entity.children ? (
-        // TODO handle folders
-        <div key={entity.id}>
-          <Folder
-            element={entity.name}
-            value={`${entity.name}_${entity.id}`}
-            onClick={(e) => handleItemSelect(e, entity)}
-          >
-            <Tree folders={entity.children} />
-          </Folder>
-          <CollapseButton elements={entity.children} />
-        </div>
-      ) : (
-        <File
-          key={entity.id}
-          value={`${entity.name}_${entity.id}`}
-          onClick={(e) => handleItemSelect(e, entity)}
-          fileIcon={entity.fileicon}
-        >
-          <p>{entity.name}</p>
-        </File>
-      )
-    );
-
-  return root_provider ? (
-    <TreeProvider
-      className="p-2 overflow-hidden rounded-md h-60 bg-background"
-      initialSelectedId="carousel.tsx_7"
-      elements={fileTree}
-    >
-      {renderTree(fileTree)}
-    </TreeProvider>
-  ) : (
-    <>{renderTree(fileTree)}</>
-  );
-};

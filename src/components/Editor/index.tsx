@@ -15,8 +15,9 @@ import { tags as t } from "@lezer/highlight";
 import { createTheme, CreateThemeOptions } from "@uiw/codemirror-themes";
 import { basicSetup } from "codemirror";
 import { useEffect, useRef } from "react";
-import "./CodeEditor.css";
+import "./Editor.css";
 import { toml } from "./lang-toml";
+import { cn } from "@/lib/utils";
 
 const myTheme = createTheme({
   theme: "dark",
@@ -58,6 +59,9 @@ const editor = EditorView.baseTheme({
   ".cm-editor > .cm-scroller": {
     display: "none",
   },
+  ".cm-editor.cm-focused": {
+    border: "none",
+  },
 });
 
 const completions: Completion[] = [
@@ -87,6 +91,7 @@ const myCompletions: CompletionSource = (context) => {
 export default function CodeEditor(props: {
   defaultText: string;
   onChange: (value: string) => void;
+  className?: string;
 }) {
   const editorRef = useRef<HTMLDivElement>(null);
   const editorView = useRef<EditorView | null>(null);
@@ -114,6 +119,7 @@ export default function CodeEditor(props: {
         }),
         EditorView.lineWrapping,
         myTheme,
+        editor,
         highlightActiveLine(),
       ],
     });
@@ -143,5 +149,5 @@ export default function CodeEditor(props: {
     }
   }, [props.defaultText]);
 
-  return <div ref={editorRef} className="overflow-x-hidden" />;
+  return <div ref={editorRef} className={cn("absolute", props.className)} />;
 }

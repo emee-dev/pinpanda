@@ -18,6 +18,14 @@ export default defineConfig(async () => ({
             name: "Geist",
             src: "./src/assets/fonts/geist/*.woff2",
           },
+          {
+            name: "Montserrat",
+            src: "./src/assets/fonts/montserrat/*.ttf",
+          },
+          {
+            name: "Poppins",
+            src: "./src/assets/fonts/poppins/*.ttf",
+          },
         ],
       },
     }),

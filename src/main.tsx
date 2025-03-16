@@ -1,10 +1,10 @@
+import { ThemeProvider } from "@/components/theme-provider";
+import { Toaster } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider, createRouter } from "@tanstack/react-router";
 import ReactDOM from "react-dom/client";
 import "unfonts.css";
-import { ThemeProvider } from "./components/theme-provider";
-import "./index.css";
-import { Toaster } from "@/components/ui/sonner";
+import "./main.css";
 import { routeTree } from "./routeTree.gen";
 
 // Create a new router instance

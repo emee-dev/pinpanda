@@ -1,7 +1,5 @@
+import CodeEditor from "@/components/Editor";
 import { AppSidebar } from "@/components/Sidebar";
-import CodeEditor from "@/components/CodeEditor";
-import { NavActions } from "@/components/nav_actions";
-import Tabs from "@/components/Tabs";
 import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -15,12 +13,22 @@ import { formatTOMl } from "@/lib/toml";
 import { useMutation } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { invoke } from "@tauri-apps/api/core";
-import { Dot, Loader, SendIcon } from "lucide-react";
-import { CSSProperties, useEffect, useState } from "react";
-import RJV from "react-json-view";
+import {
+  Cookie,
+  Dot,
+  Loader,
+  Maximize,
+  Minus,
+  PlusCircle,
+  SendIcon,
+  X,
+} from "lucide-react";
+import { useEffect, useState } from "react";
 import { parse, stringify } from "smol-toml";
 import { toast } from "sonner";
-import "./rjv.css";
+import JsonViewer from "@/components/ResponseViewers/JsonViewer";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { NavActions } from "@/components/nav_actions";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -143,6 +151,8 @@ function Index() {
     },
   });
 
+  const appWindow = getCurrentWindow();
+
   const { createFile, activeFile, updateFileContentById } = useFileTreeStore();
 
   // Initializes a demo file
@@ -208,116 +218,130 @@ function Index() {
   }, [data]);
 
   return (
-    <SidebarProvider defaultOpen={false} className="relative">
-      <AppSidebar />
+    <SidebarProvider
+      defaultOpen={false}
+      className="w-full overflow-hidden scrollbar-hide"
+    >
+      <AppSidebar collapsible="icon" className="" />
 
-      <SidebarInset className={`h-screen relative`}>
-        <header className=" flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12 sticky top-0 w-full">
-          <div className="flex items-center gap-2 px-4 transition-all">
-            <SidebarTrigger />
-            <Separator orientation="vertical" className="h-4 mr-2" />
-
-            <Tabs />
+      <SidebarInset className="overflow-hidden">
+        <header className="flex items-center h-10 pb-1 border-b shrink-0">
+          <div
+            data-tauri-drag-region
+            className="fixed flex items-center w-full pl-2"
+          >
+            <div className="flex items-center">
+              <SidebarTrigger className="" />
+              <Separator orientation="vertical" className="h-4" />
+            </div>
+            <div className="ml-2">
+              <Button variant="ghost" size="icon" className=" size-7">
+                <PlusCircle className="h-4" />
+                <span className="sr-only">New request</span>
+              </Button>
+            </div>
+            <div className="ml-2">
+              <Button variant="ghost" size="icon" className=" size-7">
+                <Cookie className="h-4" />
+                <span className="sr-only">Cookies</span>
+              </Button>
+            </div>
+            <div className="ml-2">
+              {/* <Button variant="ghost" size="icon" className=" size-7">
+                <Cookie className="h-4" />
+                <span className="sr-only">Cookies</span>
+              </Button> */}
+              <NavActions />
+            </div>
           </div>
-          <div className="px-3 ml-auto ">
-            <NavActions />
+
+          <div className="fixed flex items-center h-10 right-2 gap-x-4">
+            <div className="flex items-center [&>*]:size-[44px] [&>*]:flex [&>*]:items-center [&>*]:justify-center ">
+              <div
+                onClick={() => appWindow.minimize()}
+                className="hover:bg-muted-foreground/50"
+              >
+                <Minus className="h-4" />
+              </div>
+              <div
+                onClick={() => appWindow.toggleMaximize()}
+                className="hover:bg-muted-foreground/50"
+              >
+                <Maximize className="h-4" />
+              </div>
+              <div
+                onClick={() => appWindow.close()}
+                className="hover:bg-red-500 "
+              >
+                <X className="h-4" />
+              </div>
+            </div>
           </div>
         </header>
 
-        <div className="grid grid-cols-1 gap-4 px-2 pb-3 overflow-hidden md:grid-cols-2 scrollbar-hide">
-          <div className="relative mt-1 overflow-y-scroll rounded-md gap-y-2 font-geist scrollbar-hide">
-            <div className="absolute flex w-full p-1">
-              <Button
-                size="icon"
-                className="w-12 ml-auto h-7 disabled:bg-neutral-400"
-                disabled={disableSend}
-                onClick={() => mutate()}
-              >
-                <SendIcon />
-              </Button>
+        <section className="relative flex flex-1 overflow-scroll scrollbar-hide">
+          <div className="absolute grid grid-cols-1 gap-2 px-2 pb-3 mt-1 overflow-hidden size-full md:grid-cols-2">
+            <div className="flex flex-col mt-2 gap-y-3 font-geist">
+              <div className=" w-full h-[28px] flex">
+                <Button
+                  size="icon"
+                  className="ml-auto h-7 disabled:bg-neutral-400"
+                  disabled={disableSend}
+                  onClick={() => mutate()}
+                  // variant="outline"
+                >
+                  <SendIcon />
+                </Button>
+              </div>
+
+              {/* TODO when request panel is clicked use ref to focus the editor */}
+              <div className="relative border border-black/30 rounded-sm w-full overflow-scroll h-[calc(100%-28px)] scrollbar-hide">
+                <CodeEditor
+                  defaultText={tomlCode}
+                  onChange={(val) => setToml(val)}
+                  className="w-full"
+                />
+              </div>
             </div>
-            <div className="mt-10">
-              <CodeEditor
-                defaultText={tomlCode}
-                onChange={(val) => setToml(val)}
-              />
+
+            <div
+              className={` ${theme === "dark" ? "[--rjv_object_key:white]" : "[--rjv_object_key:black]  "} mt-1 px-2 border border-black/30  shadow-sm rounded-md relative overflow-scroll scrollbar-hide ${isPending ? "flex justify-center" : "block"}`}
+            >
+              {data && (
+                <div className="absolute font-poppins text-base top-0 flex items-center w-[calc(100%-15px)] mt-1 rounded-sm ">
+                  <div className="flex items-center text-green-500">
+                    <span className="text-sm ">
+                      {data.status} {data.status === 200 ? "OK" : ""}
+                    </span>
+                  </div>
+                  <div className="flex items-center">
+                    <Dot className="h-7" />
+                    <span className="text-sm ">{data.elapsed_time}ms</span>
+                  </div>
+                </div>
+              )}
+
+              {!isPending && (
+                // TODO refactor to use different response viewers
+                <JsonViewer
+                  code={response.code}
+                  lang={response.lang}
+                  style={{
+                    marginTop: data ? "30px" : "0px",
+                  }}
+                />
+              )}
+
+              {isPending && (
+                <div className="flex flex-col items-center gap-y-2 mt-[60px]">
+                  <Loader className="animate-spin " />
+                  <span className="text-neutral-500">Please wait...</span>
+                </div>
+              )}
             </div>
           </div>
-
-          <div
-            className={`relative ${theme === "dark" ? "[--rjv_object_key:white]" : "[--rjv_object_key:black] bg-neutral-300/75 "} mt-1 p-2 border border-dashed  shadow-sm rounded-lg relative overflow-scroll scrollbar-hide ${isPending ? "flex justify-center" : "block"}`}
-          >
-            {data && (
-              <div className="absolute top-0 flex px-1 items-center w-[calc(100%-15px)] mt-2 rounded-sm gap-x-2 bg-neutral-800/70">
-                <div className="flex items-center">
-                  <span className="text-sm text-neutral-400">
-                    {data.status} {data.status === 200 ? "OK" : ""}
-                  </span>
-                </div>
-                <div className="flex items-center">
-                  <Dot className="h-7" />
-                  <span className="text-sm text-neutral-400">
-                    {data.elapsed_time}ms
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {!isPending && (
-              <ResponseTabContent
-                code={response.code}
-                lang={response.lang}
-                style={{
-                  marginTop: data ? "30px" : "0px",
-                }}
-              />
-            )}
-
-            {isPending && (
-              <div className="flex flex-col items-center gap-y-2 mt-[60px]">
-                <Loader className="animate-spin " />
-                <span className="text-neutral-500">Please wait...</span>
-              </div>
-            )}
-          </div>
-        </div>
+        </section>
       </SidebarInset>
     </SidebarProvider>
   );
 }
-
-const ResponseTabContent = (props: {
-  code: Record<string, unknown> | string;
-  lang: string;
-  style?: CSSProperties;
-}) => {
-  if (props.lang !== "json") {
-    return (
-      <div style={props.style}>
-        <span className="text-sm font-geist">{props.code as string}</span>
-      </div>
-    );
-  }
-
-  return (
-    <RJV
-      src={props.code as Record<string, unknown>}
-      name={false}
-      enableClipboard={false}
-      displayDataTypes={false}
-      iconStyle="triangle"
-      collapsed={false}
-      sortKeys={true}
-      quotesOnKeys={false}
-      theme="twilight"
-      displayObjectSize={false}
-      indentWidth={3}
-      style={{
-        ...props.style,
-        fontSize: "13px",
-        fontFamily: "Geist, sans-serif",
-        background: "transparent",
-      }}
-    />
-  );
-};

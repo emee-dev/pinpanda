@@ -8,6 +8,8 @@ module.exports = {
     extend: {
       fontFamily: {
         geist: ["Geist", "sans-serif"],
+        montserrat: ["Montserrat", "sans-serif"],
+        poppins: ["Poppins", "sans-serif"],
       },
       borderRadius: {
         lg: "var(--radius)",
