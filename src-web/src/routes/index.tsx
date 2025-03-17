@@ -217,6 +217,11 @@ function Index() {
     }
   }, [data]);
 
+  // Get collections
+  useEffect(() => {
+    getAppMode();
+  }, []);
+
   return (
     <SidebarProvider
       defaultOpen={false}
@@ -320,7 +325,6 @@ function Index() {
                   </div>
                 </div>
               )}
-
               {!isPending && (
                 // TODO refactor to use different response viewers
                 <JsonViewer
@@ -331,7 +335,6 @@ function Index() {
                   }}
                 />
               )}
-
               {isPending && (
                 <div className="flex flex-col items-center gap-y-2 mt-[60px]">
                   <Loader className="animate-spin " />

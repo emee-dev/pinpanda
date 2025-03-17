@@ -1,0 +1,5 @@
+packages:
+  - "apps/*"
+  - "www"
+  - "src-web"
+  - "src-tauri"

@@ -30,4 +30,4 @@ isolatedvm.ts
 server.ts
 deep-object.md
 isolatedvm.README.md
-.turbo/*
+.turbo

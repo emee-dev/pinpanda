@@ -1,0 +1,7 @@
+{
+  "name": "src-tauri",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build"
+  }
+}
