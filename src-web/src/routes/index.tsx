@@ -1,4 +1,6 @@
 import CodeEditor from "@/components/Editor";
+import { NavActions } from "@/components/nav_actions";
+import JsonViewer from "@/components/ResponseViewers/JsonViewer";
 import { AppSidebar } from "@/components/Sidebar";
 import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
@@ -8,30 +10,38 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { useFileTreeStore } from "@/hooks/use-filetree";
+import {
+  PandaCollection,
+  useFileTree,
+  useFileTreeActions,
+} from "@/hooks/use-filetree";
 import { formatTOMl } from "@/lib/toml";
 import { useMutation } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { invoke } from "@tauri-apps/api/core";
+import { emit } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { EditorView } from "codemirror";
+import { open } from "@tauri-apps/plugin-dialog";
 import {
+  ChevronDown,
   Cookie,
   Dot,
   Loader,
   Maximize,
   Minus,
   PlusCircle,
-  SendIcon,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { parse, stringify } from "smol-toml";
 import { toast } from "sonner";
-import JsonViewer from "@/components/ResponseViewers/JsonViewer";
-import { getCurrentWindow } from "@tauri-apps/api/window";
-import { NavActions } from "@/components/nav_actions";
 
 export const Route = createFileRoute("/")({
   component: Index,
+  errorComponent: (err) => (
+    <div className="text-black">Exception: {err.error.message}</div>
+  ),
 });
 
 const code = `
@@ -87,32 +97,6 @@ const isJsonStr = <T extends string | null>(str: T) => {
   }
 };
 
-// const changeWorkingDir = async () => {
-//   const pickFolder = await open({
-//     multiple: false,
-//     directory: true,
-//   });
-
-//   const set_folder = await invoke("cmd_update_cwd", {
-//     curr_dir: pickFolder,
-//   });
-// };
-
-type PandaCollections = {
-  item_name: string;
-  item_path: string;
-  item_content: string;
-};
-
-const getAppMode = async () => {
-  // let res = (await invoke("get_app_mode")) as "cli_gui" | "desktop_gui";
-  const collections = (await invoke("get_collections", {
-    cwd: `C:\\Users\\DELL\\Desktop\\Panda collections`,
-  })) as PandaCollections[];
-  // console.log("App Mode: ", res);
-  console.log("collections ", JSON.stringify(collections, null, 3));
-};
-
 function Index() {
   const [response, setResponse] = useState({ code: {}, lang: "json" });
   const { theme } = useTheme();
@@ -153,7 +137,9 @@ function Index() {
 
   const appWindow = getCurrentWindow();
 
-  const { createFile, activeFile, updateFileContentById } = useFileTreeStore();
+  const { activeFile, hasSetProjectRoot } = useFileTree();
+  const { createFile, updateFileContentById } = useFileTreeActions();
+  const editorView = useRef<EditorView | null>(null);
 
   // Initializes a demo file
   useEffect(() => {
@@ -165,6 +151,7 @@ function Index() {
       type: "file",
       content: code.trim(),
       isSelectable: true,
+      path: "",
     });
   }, []);
 
@@ -218,9 +205,6 @@ function Index() {
   }, [data]);
 
   // Get collections
-  useEffect(() => {
-    getAppMode();
-  }, []);
 
   return (
     <SidebarProvider
@@ -260,7 +244,7 @@ function Index() {
             </div>
           </div>
 
-          <div className="fixed flex items-center h-10 right-2 gap-x-4">
+          <div className="fixed right-0 flex items-center h-10 gap-x-4">
             <div className="flex items-center [&>*]:size-[44px] [&>*]:flex [&>*]:items-center [&>*]:justify-center ">
               <div
                 onClick={() => appWindow.minimize()}
@@ -285,66 +269,198 @@ function Index() {
         </header>
 
         <section className="relative flex flex-1 overflow-scroll scrollbar-hide">
-          <div className="absolute grid grid-cols-1 gap-2 px-2 pb-3 mt-1 overflow-hidden size-full md:grid-cols-2">
-            <div className="flex flex-col mt-2 gap-y-3 font-geist">
-              <div className=" w-full h-[28px] flex">
-                <Button
-                  size="icon"
-                  className="ml-auto h-7 disabled:bg-neutral-400"
-                  disabled={disableSend}
-                  onClick={() => mutate()}
-                  // variant="outline"
-                >
-                  <SendIcon />
-                </Button>
-              </div>
-
-              {/* TODO when request panel is clicked use ref to focus the editor */}
-              <div className="relative border border-black/30 rounded-sm w-full overflow-scroll h-[calc(100%-28px)] scrollbar-hide">
-                <CodeEditor
-                  defaultText={tomlCode}
-                  onChange={(val) => setToml(val)}
-                  className="w-full"
-                />
-              </div>
-            </div>
-
-            <div
-              className={` ${theme === "dark" ? "[--rjv_object_key:white]" : "[--rjv_object_key:black]  "} mt-1 px-2 border border-black/30  shadow-sm rounded-md relative overflow-scroll scrollbar-hide ${isPending ? "flex justify-center" : "block"}`}
-            >
-              {data && (
-                <div className="absolute font-poppins text-base top-0 flex items-center w-[calc(100%-15px)] mt-1 rounded-sm ">
-                  <div className="flex items-center text-green-500">
-                    <span className="text-sm ">
-                      {data.status} {data.status === 200 ? "OK" : ""}
-                    </span>
-                  </div>
-                  <div className="flex items-center">
-                    <Dot className="h-7" />
-                    <span className="text-sm ">{data.elapsed_time}ms</span>
-                  </div>
-                </div>
-              )}
-              {!isPending && (
-                // TODO refactor to use different response viewers
-                <JsonViewer
-                  code={response.code}
-                  lang={response.lang}
-                  style={{
-                    marginTop: data ? "30px" : "0px",
-                  }}
-                />
-              )}
-              {isPending && (
-                <div className="flex flex-col items-center gap-y-2 mt-[60px]">
-                  <Loader className="animate-spin " />
-                  <span className="text-neutral-500">Please wait...</span>
-                </div>
-              )}
-            </div>
-          </div>
+          {!hasSetProjectRoot ? (
+            <IntroUi />
+          ) : (
+            <RequestUI
+              data={data}
+              theme={theme}
+              setToml={setToml}
+              response={response}
+              tomlCode={tomlCode}
+              isPending={isPending}
+              editorView={editorView}
+            />
+          )}
         </section>
       </SidebarInset>
     </SidebarProvider>
   );
 }
+
+const IntroUi = () => {
+  const { initFileTree, hasConfiguredProjectRoot } = useFileTreeActions();
+
+  return (
+    <div className="absolute flex flex-col items-center justify-center w-full h-full px-2 pb-3 overflow-hidden gap-y-4">
+      <div className="text-center font-geist">
+        <p className="mb-1 text-base text-neutral-700">
+          Project root should contain{" "}
+          <span className="font-semibold tracking-tighter">
+            panda.config.json
+          </span>
+        </p>
+        <p className="text-sm text-muted-foreground">
+          This config contains your collections and will be read automatically
+          if defined.
+        </p>
+      </div>
+
+      <div className="flex gap-2 mt-4 font-geist">
+        <Button
+          className="border h-9"
+          size="md"
+          variant="default"
+          // variant="outline"
+          onClick={async () => {
+            try {
+              const project_root = await open({
+                multiple: false,
+                // directory: true,
+                title: "Set working directory",
+              });
+
+              if (!project_root) {
+                return;
+              }
+
+              const collections = (await invoke("cmd_get_collections", {
+                config_path: project_root,
+              })) as PandaCollection[];
+
+              if (!collections || collections.length <= 0) {
+                hasConfiguredProjectRoot(false);
+                console.log("Collections was empty");
+                return;
+              }
+
+              // TODO make sure this does not mutate the original file array
+              initFileTree(collections);
+            } catch (error) {
+              console.log(error);
+            }
+          }}
+        >
+          Import project
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+const RequestUI = ({
+  editorView,
+  tomlCode,
+  isPending,
+  theme,
+  data,
+  setToml,
+  response,
+}: {
+  data: any;
+  response: any;
+  isPending: boolean;
+  editorView: any;
+  theme: string;
+  tomlCode: string;
+  setToml: (val: string) => void;
+}) => {
+  return (
+    <div className="absolute grid grid-cols-1 gap-2 px-2 pb-3 mt-1 overflow-hidden size-full md:grid-cols-2">
+      <div
+        className="flex flex-col mt-2 gap-y-3 font-geist"
+        onClick={() => editorView.current?.focus()}
+      >
+        <div className=" w-full h-[28px] flex">
+          {/* <Button
+            size="icon"
+            className="ml-auto h-7 disabled:bg-neutral-400"
+            disabled={disableSend || isPending}
+            onClick={() => mutate()}
+          >
+            <SendIcon />
+          </Button> */}
+          <Button
+            size="default"
+            className="ml-auto h-7 disabled:bg-neutral-400"
+            onClick={async () => {
+              try {
+                const parsed = parse(tomlCode) as any;
+
+                const formatted_toml = formatTOMl(parsed as any);
+
+                const toml = stringify(formatted_toml);
+
+                let variables = {
+                  BASE_URL: "https://jsonplaceholder.typicode.com/todos/1",
+                };
+
+                const request = (await invoke("cmd_http_request", {
+                  toml_schema: toml,
+                  default_variables: JSON.stringify(variables),
+                })) as Response;
+
+                console.log("request", request);
+              } catch (error) {
+                console.log(error);
+              }
+            }}
+          >
+            Register event
+          </Button>
+          <Button
+            size="default"
+            className="ml-auto h-7 disabled:bg-neutral-400"
+            onClick={() => emit("cancel_request", "/path/to/file")}
+          >
+            Ping event
+          </Button>
+        </div>
+
+        {/* TODO when request panel is clicked use ref to focus the editor */}
+        <div className="relative border border-black/30 rounded-sm w-full overflow-scroll h-[calc(100%-28px)] scrollbar-hide">
+          <CodeEditor
+            ref={editorView}
+            defaultText={tomlCode}
+            onChange={(val) => setToml(val)}
+            className="w-full text-base"
+          />
+        </div>
+      </div>
+
+      <div
+        className={` ${theme === "dark" ? "[--rjv_object_key:white]" : "[--rjv_object_key:black]  "} mt-1 px-2 border border-black/30  shadow-sm rounded-md relative overflow-scroll scrollbar-hide ${isPending ? "flex justify-center" : "block"}`}
+      >
+        {data && (
+          <div className="absolute font-poppins text-base top-0 flex items-center w-[calc(100%-15px)] mt-1 rounded-sm ">
+            <div className="flex items-center text-green-500">
+              <span className="text-sm ">
+                {data.status} {data.status === 200 ? "OK" : ""}
+              </span>
+            </div>
+            <div className="flex items-center">
+              <Dot className="h-7" />
+              <span className="text-sm ">{data.elapsed_time}s</span>
+            </div>
+          </div>
+        )}
+        {!isPending && (
+          // TODO refactor to use different response viewers
+          <JsonViewer
+            code={response.code}
+            lang={response.lang}
+            style={{
+              marginTop: data ? "30px" : "0px",
+            }}
+          />
+        )}
+        {isPending && (
+          <div className="flex flex-col items-center gap-y-2 mt-[60px]">
+            <Loader className="animate-spin " />
+            <span className="text-neutral-500">Please wait...</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};

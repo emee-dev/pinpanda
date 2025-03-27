@@ -1,15 +1,19 @@
-pub mod commands;
+pub mod command;
+pub mod http_runner;
+pub mod utils;
+
+use anyhow::{Context, Result as AnyResult};
 use clap::Parser;
-use glob::glob;
 use serde::{Deserialize, Serialize};
 use std::env::{current_dir, set_current_dir};
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Mutex;
-use tauri::{self, Builder, Manager, State};
+use tauri::{self, Builder, Manager, Runtime, State};
+use utils::{get_collection_from_path, normalise_path, PandaCollection};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 struct PandaConfig {
     name: String,
     version: String,
@@ -17,21 +21,12 @@ struct PandaConfig {
     collection: String,
 }
 
-#[derive(Serialize, Deserialize)]
-struct PandaCollection {
-    #[serde(skip_serializing)]
-    is_folder: bool,
-    item_name: String,
-    item_path: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    item_content: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    children: Option<Vec<PandaCollection>>,
-}
-
+#[derive(Serialize, Deserialize, Default)]
 struct AppData {
     /// The app could be started using cli
-    gui_mode: &'static str,
+    // gui_mode: &'static str,
+    gui_mode: String,
+    /// Root Directory containing `"panda.config.json"`.
     cwd: String,
 }
 
@@ -47,110 +42,144 @@ const PANDA_CONFIG: &str = "panda.config.json";
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
-    /// Folder or file to be opened (defaults to current directory if not provided)
-    // #[arg(value_name = "PATH", default_value = ".", required = false)]
+    /// Root directory containing `"panda.config.json"` (defaults to app directory if not provided)
     #[arg(required = false)]
     path: Option<PathBuf>,
 }
 
 #[tauri::command]
-fn get_app_mode(state: State<'_, Mutex<AppData>>) -> String {
+async fn cmd_get_app_state(state: State<'_, Mutex<AppData>>) -> Result<AppData, String> {
     let state = state.lock().unwrap();
 
-    let gui_mode = state.gui_mode;
-
-    gui_mode.to_string()
+    Ok(AppData {
+        gui_mode: state.gui_mode.clone(),
+        cwd: state.cwd.clone(),
+    })
 }
 
-#[tauri::command]
-fn get_collections(cwd: String) -> Result<Vec<PandaCollection>, JsError> {
-    let mut collection: Vec<PandaCollection> = vec![];
+#[tauri::command(rename_all = "snake_case")]
+fn cmd_get_collections<R: Runtime>(
+    config_path: String,
+    app: tauri::AppHandle<R>,
+) -> AnyResult<Vec<PandaCollection>, String> {
+    let state = app.state::<Mutex<AppData>>();
+    let mut app_state = state.lock().unwrap();
 
-    let panda_config = format!("{}/{}", cwd, PANDA_CONFIG);
+    let config_path = normalise_path(config_path.clone());
 
-    if cwd.is_empty() {
-        return Err(JsError {
-            message: "cwd appears to be empty.",
-            ..Default::default()
-        });
+    if config_path.is_empty() {
+        return Err("You provided an empty string for cwd.".into());
     }
 
-    let dir = normalise_path(cwd);
+    if config_path.to_lowercase().ends_with(PANDA_CONFIG) {
+        // C:/Users/DELL/Desktop/Panda collections/panda.config.json
+        let config = match fs::read_to_string(config_path.clone())
+            .with_context(|| format!("Failed to read config: {:?}", config_path))
+        {
+            Ok(c) => c,
+            Err(err) => return Err(err.to_string()),
+        };
 
-    if !is_valid_dir(&dir) {
-        return Err(JsError {
-            message: "cwd is an invalid dir.",
-            ..Default::default()
-        });
-    }
+        let config_content: PandaConfig =
+            serde_json::from_str(&config).expect("should have been able to read config.");
 
-    let conf =
-        fs::read_to_string(panda_config.clone()).expect("Should have been able to read the file");
+        let project_root = Path::new(config_path.as_str())
+            .parent()
+            .expect("unable to strip config from path")
+            .to_str()
+            .expect("unable to extract the parent path from config path");
 
-    let conf: PandaConfig =
-        serde_json::from_str(&conf).expect("should have been able to read config.");
+        // Update app cwd
+        app_state.cwd = project_root.to_string();
 
-    let config_collection = format!("{}/{}", dir, conf.collection);
+        // Here we read the collection defined in config and assume it is relative to `panda.config.json`
+        let relative_collection = normalise_path(format!(
+            "{}/{}",
+            project_root.to_string(),
+            config_content.collection
+        ));
 
-    // Only finds .toml files in the folder, do not go deeper. Sub folder support coming soon.
-    let collection_folder = glob(format!("{}/*.toml", config_collection).as_str())
-        .expect("Failed to read glob pattern");
+        let _temp: Vec<PandaCollection> = vec![];
 
-    for entry in collection_folder {
-        match entry {
-            Ok(path) => {
-                let file_path: String = path
-                    .to_str()
-                    .expect("should be a valid utf8 string")
-                    .to_string();
+        let collections = get_collection_from_path(relative_collection, _temp);
 
-                let file_name = path
-                    .file_name()
-                    .expect("should be a valid utf8 string")
-                    .to_str()
-                    .unwrap()
-                    .to_string();
-
-                let normal_path = normalise_path(file_path);
-
-                let contents = fs::read_to_string(normal_path.clone())
-                    .expect("Should have been able to read the file");
-
-                collection.push(PandaCollection {
-                    is_folder: false,
-                    item_path: normal_path,
-                    item_name: file_name,
-                    item_content: Some(contents),
-                    children: None,
-                });
-            }
-            Err(_) => (),
+        if let Err(er) = collections {
+            return Err(er.to_string());
         }
+
+        Ok(collections.unwrap())
+    } else {
+        // C:/Users/DELL/Desktop/Panda collections
+        let relative_config = format!("{}/{}", config_path, PANDA_CONFIG);
+
+        // Here we assume the user picked the folder containing `"panda.config.json"`
+        let config = match fs::read_to_string(relative_config.clone())
+            .with_context(|| format!("Invalid project directory: {:?}", config_path))
+        {
+            Ok(c) => c,
+            Err(err) => return Err(err.to_string()),
+        };
+
+        // Update app cwd
+        app_state.cwd = config_path.clone();
+
+        let config_content: PandaConfig =
+            serde_json::from_str(&config).expect("should have been able to read config.");
+
+        // TODO normalise path
+        let read_collection_relative_to_config =
+            normalise_path(format!("{}/{}", config_path, config_content.collection));
+
+        let _temp: Vec<PandaCollection> = vec![];
+
+        let collections = get_collection_from_path(read_collection_relative_to_config, _temp);
+
+        if let Err(er) = collections {
+            return Err(er.to_string());
+        }
+
+        Ok(collections.unwrap())
     }
-
-    Ok(collection)
 }
 
-fn is_valid_dir(dir: impl Into<String>) -> bool {
-    let path = String::from(dir.into());
+// #[tauri::command(rename_all = "snake_case")]
+// async fn send_fake_event<R: Runtime>(
+//     app_handle: AppHandle<R>,
+//     toml_schema: &str,
+//     default_variables: &str,
+// ) -> Result<PandaHttpResponse, String> {
+//     let (cancel_tx, cancel_rx) = tokio::sync::watch::channel(false);
+//     let webview: WebviewWindow<R> = app_handle.get_webview_window("main").unwrap();
 
-    match Path::new(path.as_str()).try_exists() {
-        Ok(_) => true,
-        Err(_) => false,
-    }
-}
+//     let temp_event_id = Arc::new(Mutex::new(0));
+//     let temp_event_id_clone = Arc::clone(&temp_event_id);
 
-fn normalise_path(dir: String) -> String {
-    let mut path = String::from(dir);
+//     let parsed_variables = variables_to_hashmap(default_variables);
+//     let interpolated_toml = replace_variables(toml_schema, &parsed_variables);
 
-    if path.contains("\\") {
-        path = path.replace("\\\\", "/").as_str().to_string();
-    };
+//     webview.listen_any("cancel_request", move |ev| {
+//         if let Err(e) = cancel_tx.send(true) {
+//             println!("Failed to send cancel event for ephemeral request {e:?}");
+//         }
 
-    path = path.replace("\\", "/");
+//         let mut lock = temp_event_id.lock().unwrap();
+//         *lock = ev.id();
 
-    path
-}
+//         println!("Request is cancelled")
+//     });
+
+//     let schema: TomlRequest = match toml::from_str(interpolated_toml.as_str()) {
+//         Ok(d) => d,
+//         Err(e) => return Err(e.to_string()),
+//     };
+
+//     let res = http_runner::run_single_request(schema, cancel_rx).await;
+
+//     // Try to unlisten after each individual request
+//     webview.unlisten(*temp_event_id_clone.lock().unwrap());
+
+//     res
+// }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub async fn run() {
@@ -161,9 +190,11 @@ pub async fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
-            commands::cmd_http_request,
-            get_app_mode,
-            get_collections
+            // command::cmd_http_request,
+            command::cmd_http_request,
+            cmd_get_app_state,
+            cmd_get_collections,
+            // send_fake_event
         ]);
 
     let builder = if let Some(path) = args.path {
@@ -176,7 +207,7 @@ pub async fn run() {
 
         builder.setup(move |app| {
             app.manage(Mutex::new(AppData {
-                gui_mode: "cli_gui",
+                gui_mode: "cli_gui".to_string(),
                 cwd: folder,
             }));
 
@@ -185,7 +216,7 @@ pub async fn run() {
     } else {
         builder.setup(move |app| {
             app.manage(Mutex::new(AppData {
-                gui_mode: "desktop_gui",
+                gui_mode: "desktop_gui".to_string(),
                 cwd: "".to_string(),
             }));
 

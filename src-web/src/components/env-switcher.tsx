@@ -21,7 +21,6 @@ export function EnvSwitcher({
   environments: {
     name: string;
     logo: React.ElementType;
-    isSelected?: boolean;
   }[];
 }) {
   const { isMobile } = useSidebar();
@@ -57,17 +56,18 @@ export function EnvSwitcher({
               <DropdownMenuItem
                 key={env.name}
                 onClick={() => setActiveEnv(env)}
-                className="gap-2 p-2"
+                className={`gap-2 p-2 ${activeEnv.name === env.name ? "border text-foreground" : "text-muted-foreground"}`}
               >
-                {env.isSelected && (
+                {activeEnv.name === env.name && (
                   <div className="flex items-center justify-center rounded-sm size-6">
                     <env.logo className="size-4 shrink-0" />
                   </div>
                 )}
 
-                {!env.isSelected && (
+                {activeEnv.name !== env.name && (
                   <div className="flex items-center justify-center rounded-sm size-6"></div>
                 )}
+
                 {env.name}
               </DropdownMenuItem>
             ))}

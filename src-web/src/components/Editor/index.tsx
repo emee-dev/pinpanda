@@ -14,7 +14,7 @@ import {
 import { tags as t } from "@lezer/highlight";
 import { createTheme, CreateThemeOptions } from "@uiw/codemirror-themes";
 import { basicSetup } from "codemirror";
-import { useEffect, useRef } from "react";
+import { RefObject, useEffect, useRef } from "react";
 import "./Editor.css";
 import { toml } from "./lang-toml";
 import { cn } from "@/lib/utils";
@@ -88,13 +88,16 @@ const myCompletions: CompletionSource = (context) => {
   };
 };
 
-export default function CodeEditor(props: {
+type CodeEditorProps = {
   defaultText: string;
   onChange: (value: string) => void;
   className?: string;
-}) {
+  ref: RefObject<EditorView | null>;
+};
+
+export default function CodeEditor(props: CodeEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
-  const editorView = useRef<EditorView | null>(null);
+  // const editorView = useRef<EditorView | null>(null);
 
   useEffect(() => {
     const startState = EditorState.create({
@@ -124,25 +127,42 @@ export default function CodeEditor(props: {
       ],
     });
 
-    editorView.current = new EditorView({
+    // editorView.current = new EditorView({
+    //   state: startState,
+    //   parent: editorRef.current as Element,
+    // });
+    props.ref.current = new EditorView({
       state: startState,
       parent: editorRef.current as Element,
     });
 
     return () => {
-      editorView.current?.destroy();
+      // editorView.current?.destroy();
+      props.ref.current?.destroy();
     };
   }, []);
 
   useEffect(() => {
+    // if (
+    //   editorView.current &&
+    //   props.defaultText !== editorView.current.state.doc.toString()
+    // ) {
+    //   editorView.current.dispatch({
+    //     changes: {
+    //       from: 0,
+    //       to: editorView.current.state.doc.length,
+    //       insert: props.defaultText,
+    //     },
+    //   });
+    // }
     if (
-      editorView.current &&
-      props.defaultText !== editorView.current.state.doc.toString()
+      props.ref.current &&
+      props.defaultText !== props.ref.current.state.doc.toString()
     ) {
-      editorView.current.dispatch({
+      props.ref.current.dispatch({
         changes: {
           from: 0,
-          to: editorView.current.state.doc.length,
+          to: props.ref.current.state.doc.length,
           insert: props.defaultText,
         },
       });

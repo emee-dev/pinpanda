@@ -1,50 +1,42 @@
-use glob::glob;
 use reqwest::header::CONTENT_TYPE;
 use reqwest::multipart;
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::env;
-use std::path::Path;
 use std::str::FromStr;
-use std::sync::Mutex;
 use std::{collections::HashMap, time::Instant};
 use tauri::http::HeaderMap;
 use tauri::http::HeaderName;
 use tauri::http::HeaderValue;
-use tauri::Env;
-use tauri::Manager;
-use tauri::Runtime;
-use tauri::State;
-use toml;
+use tokio::sync::oneshot;
+use tokio::sync::watch::Receiver;
 
 type Json = serde_json::Value;
 
 // Separate logic
 #[derive(Deserialize, Clone, Debug, Serialize)]
-pub struct RequestResponse {
-    status: u16,
-    elapsed_time: u128,
-    text_response: Option<String>,
-    headers: Option<HashMap<String, String>>,
-    content_type: String,
+pub struct PandaHttpResponse {
+    pub status: u16,
+    pub elapsed_time: u64,
+    pub text_response: Option<String>,
+    pub headers: Option<HashMap<String, String>>,
+    pub content_type: String,
 }
 
 #[derive(Deserialize, Clone, Debug, Serialize)]
-// #[serde(deny_unknown_fields)]
-struct TomlRequest {
-    get: Option<RequestParams>,
-    head: Option<RequestParams>,
-    post: Option<RequestParams>,
-    put: Option<RequestParams>,
-    patch: Option<RequestParams>,
-    delete: Option<RequestParams>,
-    options: Option<RequestParams>,
+pub struct PandaTomlRequest {
+    pub get: Option<RequestParams>,
+    pub head: Option<RequestParams>,
+    pub post: Option<RequestParams>,
+    pub put: Option<RequestParams>,
+    pub patch: Option<RequestParams>,
+    pub delete: Option<RequestParams>,
+    pub options: Option<RequestParams>,
 }
 
 #[derive(Deserialize, Clone, Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
-struct RequestParams {
+pub struct RequestParams {
     #[serde(skip_serializing, skip_deserializing)]
     method: String,
 
@@ -64,12 +56,12 @@ struct RequestParams {
 }
 
 #[derive(Deserialize, Debug, Clone, Serialize)]
-struct BodyText {
+pub struct BodyText {
     content: String,
 }
 
 #[derive(Deserialize, Debug, Clone, Serialize)]
-struct FormPayload {
+pub struct FormPayload {
     /// Can handle both `form-data` and `multipart`.
     content: Vec<FormContent>,
 }
@@ -84,15 +76,9 @@ enum BodyVariants {
         content: String,
     },
     BodyFormUrlEncoded {
-        // #[serde(alias = "type")]
-        // #[serde(rename(serialize = "type", deserialize = "body_type"))]
-        // body_type: String,
         content: Vec<FormContent>,
     },
     BodyFormMultipart {
-        // #[serde(alias = "type")]
-        // #[serde(rename(serialize = "type", deserialize = "body_type"))]
-        // body_type: String,
         content: Vec<FormContent>,
     },
 
@@ -113,57 +99,64 @@ struct Script {
     code: String,
 }
 
-#[tauri::command(rename_all = "snake_case")]
-pub async fn cmd_http_request(toml_schema: &str) -> Result<RequestResponse, String> {
-    let client = reqwest::Client::new();
+pub async fn run_single_request(
+    req: PandaTomlRequest,
+    mut cancelled_rx: Receiver<bool>,
+) -> Result<PandaHttpResponse, String> {
+    let client_builder = reqwest::ClientBuilder::new()
+        .connection_verbose(true)
+        .gzip(true)
+        .brotli(true)
+        .deflate(true)
+        .referer(false)
+        .tls_info(true);
 
-    let schema: TomlRequest = match toml::from_str(&toml_schema) {
-        Ok(d) => d,
-        Err(e) => return Err(e.to_string()),
-    };
+    let client = client_builder
+        .build()
+        .expect("was unable to build client_builder");
 
-    let params = match schema {
-        TomlRequest {
+    let params = match req {
+        PandaTomlRequest {
             get: Some(payload), ..
         } => RequestParams {
             method: String::from("get"),
             ..payload
         },
-        TomlRequest {
+        PandaTomlRequest {
             head: Some(payload),
             ..
         } => RequestParams {
             method: String::from("head"),
             ..payload
         },
-        TomlRequest {
+        PandaTomlRequest {
             post: Some(payload),
             ..
         } => RequestParams {
             method: String::from("post"),
             ..payload
         },
-        TomlRequest {
+        PandaTomlRequest {
             put: Some(payload), ..
         } => RequestParams {
             method: String::from("put"),
             ..payload
         },
-        TomlRequest {
+        PandaTomlRequest {
             patch: Some(payload),
             ..
         } => RequestParams {
             method: String::from("patch"),
             ..payload
         },
-        TomlRequest {
+        PandaTomlRequest {
             delete: Some(payload),
             ..
         } => RequestParams {
             method: String::from("delete"),
             ..payload
         },
-        TomlRequest {
+        PandaTomlRequest {
             options: Some(payload),
             ..
         } => RequestParams {
@@ -185,14 +178,16 @@ pub async fn cmd_http_request(toml_schema: &str) -> Result<RequestResponse, Stri
         return Err("Please provide a valid request method.".to_string());
     };
 
-    // TODO improve this logic to better support when there is no request body eg for get requests
-    let valid_body = match (
+    let body = (
         params.text,
         params.json,
         params.form_multipart,
         params.form_urlencoded,
         params.xml,
-    ) {
+    );
+
+    // TODO improve this logic to better support when there is no request body eg for get requests
+    let valid_body = match body {
         (Some(text), _, _, _, _) => BodyVariants::BodyText {
             content: text.content.to_owned(),
         },
@@ -321,82 +316,87 @@ pub async fn cmd_http_request(toml_schema: &str) -> Result<RequestResponse, Stri
         None => with_request_body,
     };
 
-    let send_request = with_request_headers.send().await;
+    let (resp_tx, resp_rx) = oneshot::channel::<Result<reqwest::Response, reqwest::Error>>();
 
-    let response = match send_request {
-        Ok(response) => response,
-        Err(error) => return Err(error.to_string()),
+    // Send the request in a separate thread.
+    tokio::spawn(async move {
+        let send_request: Result<reqwest::Response, reqwest::Error> =
+            with_request_headers.send().await;
+
+        let _ = resp_tx.send(send_request);
+    });
+
+    // Listen for cancelled event change
+    let raw_response = tokio::select! {
+        Ok(r) = resp_rx => r,
+        _ = cancelled_rx.changed() => {
+            println!("Request cancelled");
+            return Ok(PandaHttpResponse {
+                status: 0, elapsed_time: 0,
+                text_response: Some("Request was cancelled.".to_string()),
+                headers: Some(HashMap::new()),
+                content_type: "application/text".to_string()
+            });
+        }
     };
 
-    let mut response_headers: HashMap<String, String> = HashMap::new();
+    {
+        // Handle the actual response for this request.
+        let response = match raw_response {
+            Ok(a) => a,
+            Err(err) => {
+                if err.is_connect() {
+                    return Err(format!("Connection error: {}", err.to_string()));
+                } else if err.is_timeout() {
+                    return Err(format!("Timeout error: {}", err.to_string()));
+                } else if err.is_status() {
+                    return Err(format!("HTTP error: {}", err.to_string()));
+                } else {
+                    return Err(format!("Other error: {}", err.to_string()));
+                };
+            }
+        };
 
-    let status = response.status().as_u16();
-    let headers = response.headers().clone();
-    let response_type = response.headers().clone();
-    let content_type = response_type.get(CONTENT_TYPE).unwrap();
+        let mut response_headers: HashMap<String, String> = HashMap::new();
 
-    for item in headers {
-        let key = item.0.unwrap().to_string();
-        let value = item.1.to_str().unwrap().to_string();
+        let status = response.status().as_u16();
 
-        response_headers.insert(key, value);
+        let headers = response.headers().clone();
+        let response_type = response.headers().clone();
+        let content_type = response_type.get(CONTENT_TYPE).unwrap();
+
+        for (k, v) in headers {
+            if let Some(valid_header) = k {
+                let key = valid_header.to_string();
+
+                let value = v.as_bytes();
+                let value = String::from_utf8_lossy(value).to_string();
+
+                response_headers.insert(key, value);
+            }
+        }
+
+        let response_as_text = response.text().await;
+
+        let text = match response_as_text {
+            Ok(text) => text,
+            Err(msg) => return Err(msg.to_string()),
+        };
+
+        let elapsed_time = now.elapsed();
+
+        let after_response = PandaHttpResponse {
+            status,
+            headers: Some(response_headers),
+            text_response: Some(text),
+            elapsed_time: elapsed_time.as_secs(),
+            content_type: content_type
+                .to_str()
+                .expect("should be a valid content type")
+                .to_string(),
+        };
+
+        // Here we can run post-request scripts
+        Ok(after_response)
     }
-
-    let response_as_text = response.text().await;
-
-    let text = match response_as_text {
-        Ok(text) => text,
-        Err(msg) => return Err(msg.to_string()),
-    };
-
-    let elapsed_time = now.elapsed();
-
-    let after_response = RequestResponse {
-        status,
-        headers: Some(response_headers),
-        text_response: Some(text),
-        elapsed_time: elapsed_time.as_millis(),
-        content_type: content_type
-            .to_str()
-            .expect("should be a valid content type")
-            .to_string(),
-    };
-
-    // Here we can run post-request scripts
-    Ok(after_response)
 }
-
-#[tauri::command(rename_all = "snake_case")]
-pub async fn cmd_update_cwd(curr_dir: &str) -> Result<String, String> {
-    let dir = Path::new(curr_dir);
-
-    if let Err(v) = env::set_current_dir(&dir) {
-        return Err(v.to_string());
-    }
-
-    Ok(env::current_dir().unwrap().to_str().unwrap().to_string())
-}
-
-#[derive(Deserialize, Clone, Debug, Default, Serialize)]
-pub struct AppData {
-    pub current_dir: &'static str,
-}
-
-type AppState = Mutex<AppData>;
-
-// #[tauri::command(rename_all = "snake_case")]
-// pub async fn cmd_list_files<R: Runtime>(
-//     app: tauri::AppHandle<R>,
-//     _window: tauri::Window<R>,
-// ) -> Result<String, String> {
-//     println!("command called");
-
-//     app.manage(AppState::default());
-
-//     Ok(app
-//         .state::<AppState>()
-//         .lock()
-//         .unwrap()
-//         .current_dir
-//         .to_string())
-// }

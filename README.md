@@ -6,7 +6,7 @@
 
 ## Why Another HTTP Client?
 
-Worm is an **open-source**, **offline-first** HTTP client built with **Tauri** for developers who value **privacy** and **local-first** workflows with an incredible developer experience (DX). Designed to keep your data private and under your control, Worm allows you to interact with APIs in the best way possible, with optional support for cloud integrations for additional tools like **vaults** and **observability**. Whether you’re working solo or within a team, Worm provides a streamlined and powerful API testing experience.
+Panda is an **open-source**, **offline-first** HTTP client built with **Tauri** for developers who value **privacy** and **local-first** workflows with an incredible developer experience (DX). Designed to keep your data private and under your control, Panda allows you to interact with APIs in the best way possible, with optional support for cloud integrations for additional tools like **vaults** and **observability**. Whether you’re working solo or within a team, Panda provides a streamlined and powerful API testing experience.
 
 ---
 
@@ -42,13 +42,13 @@ Before you begin, ensure you have installed the necessary tools:
 ### Clone the Repository
 
 ```sh
-git clone https://github.com/emee-dev/useworm
+git clone https://github.com/emee-dev/pinpanda
 ```
 
 ### CD into directory
 
 ```sh
-cd useworm
+cd pinpanda
 
 ```
 
@@ -64,7 +64,7 @@ npm install -g pnpm
 pnpm install
 ```
 
-### Run Worm in Development Mode
+### Run Panda in Development Mode
 
 ```sh
 pnpm tauri dev
@@ -76,21 +76,21 @@ You are now ready to start developing!
 
 ## Notes
 
-- Currently, Worm does not use any platform-specific API and only supports Windows.
+- Currently, Panda does not use any platform-specific API and only supports Windows.
 - The `src` folder contains the React.js code for the UI, while `src-tauri` contains the Rust backend code.
 
 ---
 
 ## Roadmap
 
-As Worm is still in beta, several features and improvements are planned. Here’s an overview of upcoming features:
+As Panda is still in beta, several features and improvements are planned. Here’s an overview of upcoming features:
 
 - [x] Request and Response Handling
-- [ ] Postman Collection Support
-- [ ] Insomnia Collection Support
-- [ ] Worm Collections (Folder & File Structure Management)
+- [ ] Panda Collections (Folder & File Structure Management)
 - [ ] Secret Management
 - [ ] Scripting Capabilities
+- [ ] Postman Collection Support
+- [ ] Insomnia Collection Support
 - [ ] GraphQL Support
 - [ ] Code Generation
 - **Package Distribution:**
@@ -105,7 +105,7 @@ As Worm is still in beta, several features and improvements are planned. Here’
 
 ## TOML Syntax
 
-Worm allows making requests using TOML syntax. Below are some examples:
+Panda allows making requests using TOML syntax. Below are some examples:
 
 ### GET Requests
 
@@ -224,7 +224,7 @@ Thank you for your support! 🚀
 
 ## Support My Work ☕
 
-If you find Worm useful, consider supporting my work:
+If you find Panda useful, consider supporting my work:
 
 [!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://buymeacoffee.com/emee_dev)
 

@@ -4,7 +4,11 @@ import {
   Folder,
   Tree as TreeProvider,
 } from "@/components/ui/tree-view-api";
-import { FileTree as tree, useFileTreeStore } from "@/hooks/use-filetree";
+import {
+  FileTree as Tree,
+  useFileTree,
+  useFileTreeActions,
+} from "@/hooks/use-filetree";
 
 type SelectEvent = React.MouseEvent<
   HTMLButtonElement | HTMLDivElement,
@@ -12,29 +16,35 @@ type SelectEvent = React.MouseEvent<
 >;
 
 type FileTreeProps = {
-  folders: tree[];
+  folders: Tree[];
   root_provider?: boolean;
 };
 
-const FIleTree = ({ root_provider = false }: FileTreeProps) => {
-  const { fileTree, addNewTab, setActiveFile } = useFileTreeStore();
-  const handleItemSelect = (ev: SelectEvent, item: tree) => {
+const FIleTree = ({
+  folders: fileTree,
+  root_provider = false,
+}: FileTreeProps) => {
+  const { setActiveFile } = useFileTreeActions();
+
+  const handleItemSelect = (ev: SelectEvent, item: Tree) => {
     ev.stopPropagation();
     ev.preventDefault();
 
-    addNewTab(item);
-    setActiveFile(item);
+    // console.log("Type: ", item.path);
+
+    if (item.type === "file") {
+      setActiveFile(item);
+    }
   };
 
-  const renderTree = (entities: tree[]) =>
+  const renderTree = (entities: Tree[]) =>
     entities.map((entity) =>
-      entity.children ? (
-        // TODO handle folders
+      Array.isArray(entity.children) && entity.children.length > 0 ? (
         <div key={entity.id}>
           <Folder
             element={entity.name}
-            value={`${entity.name}_${entity.id}`}
-            onClick={(e) => handleItemSelect(e, entity)}
+            value={entity.id}
+            onClick={(ev) => handleItemSelect(ev, entity)}
           >
             <FIleTree folders={entity.children} />
           </Folder>
@@ -43,7 +53,7 @@ const FIleTree = ({ root_provider = false }: FileTreeProps) => {
       ) : (
         <File
           key={entity.id}
-          value={`${entity.name}_${entity.id}`}
+          value={entity.id}
           onClick={(e) => handleItemSelect(e, entity)}
           fileIcon={entity.fileicon}
         >
@@ -55,7 +65,7 @@ const FIleTree = ({ root_provider = false }: FileTreeProps) => {
   return root_provider ? (
     <TreeProvider
       className="p-2 overflow-hidden rounded-md h-60 bg-background"
-      initialSelectedId="carousel.tsx_7"
+      initialSelectedId={fileTree[0]?.id}
       elements={fileTree}
     >
       {renderTree(fileTree)}

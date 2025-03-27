@@ -1,83 +1,65 @@
-import { FileCog, Settings } from "lucide-react";
 import { create } from "zustand";
 
-const configContent = `
-# There is no config for now, but it should look like this.
-{
-  "$schema": "https://demoapi.dev/schema.json",
-  "version": "v1",
-  "project_name": "Stripe API",
-  "collection_folder": "./some_path/collections"
-}
-`;
-
-const dotenvContent = `
-# There will be dotenv support - (coming soon)
-BASEURL = "http://localhost:3000/api"
-API_KEY = $BASE_URL
-`;
-
-const setUpContent = () => {
-  const map = new Map();
-
-  const arr = [
-    { id: "24", content: dotenvContent },
-    {
-      id: "34",
-      content: `BASE_URL="https://api.vercel.com/api"\nAPI_KEY="custom_api"`,
-    },
-    { id: "44", content: configContent },
-  ];
-
-  arr.forEach((item) => map.set(item.id, item.content));
-
-  return map;
-};
-
-type Item = {
+export type FileTree = {
   id: string;
   name: string;
   type: "file" | "folder";
-  content?: string | null;
-  children?: Item[];
-  parentId?: string;
-  fileicon?: React.ReactNode;
   isSelectable: boolean;
+  path: string;
+  content?: string | null;
+  children?: FileTree[];
+  parentId?: string;
+  // TODO remove this fileicon property
+  // Sidebar will infer the file type and display the appropriate icon
+  fileicon?: any;
 };
 
-export type FileTree = Item;
+export type PandaCollection = {
+  id: string;
+  name: string;
+  path: string;
+  content: string | undefined;
+  children: PandaCollection[] | undefined;
+  isSelectable: boolean;
+  type: "file" | "folder";
+};
+
+type ContentMap = Map<string, string>;
 
 type File = string;
 type ActiveFile = Pick<
-  Item,
-  "id" | "name" | "content" | "type" | "fileicon" | "isSelectable"
->;
-type Tab = Pick<
-  Item,
+  FileTree,
   "id" | "name" | "content" | "type" | "fileicon" | "isSelectable"
 >;
 
-type FileTreeState = {
-  tabs: Tab[];
-  activeFile: ActiveFile | null;
-  fileTree: FileTree[];
-  fileContents: Map<string, File>;
+type FileTreeActions = {
+  hasConfiguredProjectRoot: (val: boolean) => void;
   createFile: (file: FileTree) => void;
   removeFile: (file: FileTree) => void;
 
-  // Tabs
-  addNewTab: (file: ActiveFile) => void;
-  removeTab: (fileId: string) => void;
-  setActiveFile: (file: ActiveFile) => void;
+  // Init
+  initFileTree: (files: FileTree[]) => void;
 
   // Editor
+  setActiveFile: (file: ActiveFile) => void;
   updateFileContentById: (fileId: string, args: File) => void;
 };
 
-const traverse = (
-  items: FileTree[],
-  args: { parentId?: string; operation: "add" | "remove"; data: Partial<Item> }
-) => {
+type FileTreeState = {
+  hasSetProjectRoot: boolean;
+  fileTree: FileTree[];
+  activeFile: ActiveFile | null;
+  fileContents: Map<string, File>;
+  actions: FileTreeActions;
+};
+
+type TreeTraversal = {
+  parentId?: string;
+  operation: "add" | "remove";
+  data: Partial<FileTree>;
+};
+
+const editTree = (items: FileTree[], args: TreeTraversal) => {
   if (items.length <= 0) {
     return [];
   }
@@ -85,7 +67,8 @@ const traverse = (
   // Top level items without a parent id
   if (args?.parentId === undefined) {
     if (args.operation === "add") {
-      items = [...items, args.data as any];
+      // items = [...items, args.data as any];
+      items.push(args.data as any);
     }
 
     if (args.operation === "remove") {
@@ -97,7 +80,8 @@ const traverse = (
     if (item.children && Array.isArray(item.children)) {
       if (item.id === args?.parentId) {
         if (args.operation === "add") {
-          item.children = [...item.children, args.data as any];
+          // item.children = [...item.children, args.data as any];
+          item.children.push(args.data as any);
         }
         if (args.operation === "remove") {
           item.children = item.children.filter(
@@ -106,106 +90,113 @@ const traverse = (
         }
       }
 
-      traverse(item.children, args);
+      editTree(item.children, args);
     }
   }
 
   return items;
 };
 
-export const useFileTreeStore = create<FileTreeState>((set) => ({
-  tabs: [],
-  fileTree: [
-    {
-      id: "24",
-      isSelectable: true,
-      name: ".env.local",
-      fileicon: <FileCog className="w-4 h-4" />,
-      type: "file",
-    },
-    {
-      id: "34",
-      isSelectable: true,
-      name: ".env.production",
-      fileicon: <FileCog className="w-4 h-4" />,
-      type: "file",
-    },
-    {
-      id: "44",
-      isSelectable: true,
-      name: "worm.config.json",
-      fileicon: <Settings className="w-4 h-4" />,
-      type: "file",
-    },
-  ],
+/**
+ * Moves the content property from each object to a centralized map
+ * where it is much easier to manipulate.
+ * @param items
+ * @param map
+ * @returns
+ *
+ */
+const moveContentsToMap = (items: FileTree[], map: ContentMap = new Map()) => {
+  for (const item of items) {
+    if (item.children && Array.isArray(item.children)) {
+      moveContentsToMap(item.children, map);
+    } else {
+      map.set(item.id, item.content as string);
+      delete item.content;
+    }
+  }
+
+  return { items, map };
+};
+
+export const useFileTree = create<FileTreeState>((set) => ({
+  fileTree: [],
+  hasSetProjectRoot: false,
   activeFile: null,
-  fileContents: setUpContent(),
-  // Filetree
-  createFile: (file: Item) =>
-    set((state) => {
-      const tree = state.fileTree;
-      const previousMap = state.fileContents;
+  fileContents: new Map(),
+  actions: {
+    hasConfiguredProjectRoot: (val) => set((_) => ({ hasSetProjectRoot: val })),
+    // Filetree
+    // TODO Refactor this to create a file using the folder path
+    // instead of parentId, if parentId is not found then file will
+    // be created at collection root.
+    createFile: (file: FileTree) =>
+      set((state) => {
+        const tree = state.fileTree;
+        const previousMap = state.fileContents;
 
-      const ops = traverse(tree, {
-        parentId: file.parentId,
-        operation: "add",
-        data: file,
-      });
+        const ops = editTree(tree, {
+          parentId: file.parentId,
+          operation: "add",
+          data: file,
+        });
 
-      if (file.content) {
-        let map = previousMap.set(file.id, file.content);
+        if (file.content) {
+          let map = previousMap.set(file.id, file.content);
 
-        return { fileTree: ops, fileContents: map };
-      }
+          return { fileTree: ops, fileContents: map };
+        }
 
-      return { fileTree: ops };
-    }),
-  removeFile: (file: Item) =>
-    set((state) => {
-      let tree = state.fileTree;
+        return { fileTree: ops };
+      }),
+    removeFile: (file: FileTree) =>
+      set((state) => {
+        let tree = state.fileTree;
+        let previousMap = state.fileContents;
 
-      let ops = traverse(tree, {
-        parentId: file.parentId,
-        operation: "remove",
-        data: { id: file.id },
-      });
+        let ops = editTree(tree, {
+          parentId: file.parentId,
+          operation: "remove",
+          data: { id: file.id },
+        });
 
-      return { fileTree: ops };
-    }),
+        let isDeleted = previousMap.delete(file.id);
 
-  // Tabs
-  setActiveFile: (file) =>
-    set((state) => {
-      let content = state.fileContents.get(file.id) || "";
+        if (isDeleted) {
+          return { fileTree: ops, fileContents: previousMap };
+        }
 
-      return { activeFile: { ...file, content } };
-    }),
-  addNewTab: (file) =>
-    set((state) => {
-      const previousTabs = state.tabs;
+        return { fileTree: ops };
+      }),
 
-      if (previousTabs.find((tab) => tab.id === file.id)) {
-        return { tabs: previousTabs };
-      }
+    // Init
+    initFileTree: (files) =>
+      set((state) => {
+        let { items, map } = moveContentsToMap(files);
 
-      return { tabs: [...previousTabs, file] };
-    }),
-  removeTab: (fileId) =>
-    set((state) => {
-      const previousTabs = state.tabs;
+        // TODO recurse the files[] and remove content from each object
+        // simply moving each content to the content map.
 
-      const filter = previousTabs.filter((tab) => tab.id !== fileId);
+        return { fileTree: items, fileContents: map, hasSetProjectRoot: true };
+      }),
 
-      return { tabs: filter };
-    }),
+    // Tabs
+    setActiveFile: (file) =>
+      set((state) => {
+        let content = state.fileContents.get(file.id) || "";
 
-  // Editor
-  updateFileContentById: (fileId, args) =>
-    set((state) => {
-      let previousMap = state.fileContents;
+        return { activeFile: { ...file, content } };
+      }),
 
-      let file = previousMap.set(fileId, args);
+    // Editor
+    updateFileContentById: (fileId, args) =>
+      set((state) => {
+        let previousMap = state.fileContents;
 
-      return { fileContents: file };
-    }),
+        let file = previousMap.set(fileId, args);
+
+        return { fileContents: file };
+      }),
+  },
 }));
+
+export const useFileTreeActions = () => useFileTree((state) => state.actions);
