@@ -79,6 +79,10 @@ jobs:
       # - name: Build frontend
       #   run: pnpm run --filter=src-web vite:build
 
+      - name: Debug Environment Variables
+        run: env | grep TAURI_
+        shell: bash
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
