@@ -5,6 +5,7 @@
   "identifier": "com.panda.http",
   "build": {
     "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "pnpm run --filter=src-web vite:build",
     "frontendDist": "../src-web/dist"
   },
   "app": {

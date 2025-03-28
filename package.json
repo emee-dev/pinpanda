@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "tauri:dev": "concurrently --kill-others \"pnpm run --filter=src-web dev\" \"pnpm run --filter=src-tauri dev\"",
-    "tauri:build": "concurrently --kill-others \"pnpm run --filter=src-web vite:build\" \"pnpm run --filter=src-tauri build\""
+    "tauri:build": "pnpm run --filter=src-tauri build"
   },
   "dependencies": {
     "concurrently": "^9.1.2",
