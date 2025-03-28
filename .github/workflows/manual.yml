@@ -80,7 +80,12 @@ jobs:
       #   run: pnpm run --filter=src-web vite:build
 
       - name: Debug Environment Variables
-        run: env | grep TAURI_
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+        run: |
+          echo "Private Key Length: $(echo -n "$TAURI_SIGNING_PRIVATE_KEY" | wc -c)"
+          echo "Password Length: $(echo -n "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" | wc -c)"
         shell: bash
 
       - uses: tauri-apps/tauri-action@v0
