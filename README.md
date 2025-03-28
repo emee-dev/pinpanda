@@ -108,7 +108,7 @@ pnpm tauri:build
 
 ---
 
-## Notes
+## Note:
 
 - Currently, Panda does not use any platform-specific API and only supports Windows.
 - The `src` folder contains the React.js code for the UI, while `src-tauri` contains the Rust backend code.
