@@ -18,7 +18,7 @@ Panda is an **open-source**, **offline-first** HTTP client built with **Tauri** 
 
 ### Installation from Installer
 
-Simply download and execute the installer, available on the [releases](https://github.com/emee-dev/useworm/releases) page. Currently, there are no official releases, as the project is still in its prototyping phase with ongoing changes. However, you can clone the project and compile it yourself. Refer to the [Tauri v2 documentation](https://v2.tauri.app/) for guidance.
+Simply download and execute the installer, available on the [releases](https://github.com/emee-dev/pinpanda/releases) page. Currently, there are no official releases, as the project is still in its prototyping phase with ongoing changes. However, you can clone the project and compile it yourself. Refer to the [Tauri v2 documentation](https://v2.tauri.app/) for guidance.
 
 ---
 

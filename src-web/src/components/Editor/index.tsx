@@ -5,6 +5,7 @@ import {
 } from "@codemirror/autocomplete";
 import { defaultKeymap, indentWithTab } from "@codemirror/commands";
 import { EditorState } from "@codemirror/state";
+import { json } from "@codemirror/lang-json";
 import {
   Command,
   EditorView,
@@ -90,20 +91,22 @@ const myCompletions: CompletionSource = (context) => {
 
 type CodeEditorProps = {
   defaultText: string;
-  onChange: (value: string) => void;
   className?: string;
-  ref: RefObject<EditorView | null>;
+  lang?: "toml" | "json";
+  onChange: (value: string) => void;
+  ref?: RefObject<EditorView | null>;
 };
 
 export default function CodeEditor(props: CodeEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
-  // const editorView = useRef<EditorView | null>(null);
 
   useEffect(() => {
     const startState = EditorState.create({
       doc: props.defaultText,
       extensions: [
-        toml(),
+        // toml(),
+        props.lang === "json" ? json() : toml(),
+
         basicSetup,
         keymap.of([
           ...defaultKeymap,
@@ -127,35 +130,23 @@ export default function CodeEditor(props: CodeEditorProps) {
       ],
     });
 
-    // editorView.current = new EditorView({
-    //   state: startState,
-    //   parent: editorRef.current as Element,
-    // });
-    props.ref.current = new EditorView({
-      state: startState,
-      parent: editorRef.current as Element,
-    });
+    if (props.ref) {
+      props.ref.current = new EditorView({
+        state: startState,
+        parent: editorRef.current as Element,
+      });
+    }
 
     return () => {
-      // editorView.current?.destroy();
-      props.ref.current?.destroy();
+      if (props.ref) {
+        props.ref.current?.destroy();
+      }
     };
   }, []);
 
   useEffect(() => {
-    // if (
-    //   editorView.current &&
-    //   props.defaultText !== editorView.current.state.doc.toString()
-    // ) {
-    //   editorView.current.dispatch({
-    //     changes: {
-    //       from: 0,
-    //       to: editorView.current.state.doc.length,
-    //       insert: props.defaultText,
-    //     },
-    //   });
-    // }
     if (
+      props.ref &&
       props.ref.current &&
       props.defaultText !== props.ref.current.state.doc.toString()
     ) {

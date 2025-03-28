@@ -17,7 +17,7 @@ import {
 } from "@/hooks/use-filetree";
 import { formatTOMl } from "@/lib/toml";
 import { useMutation } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, ErrorComponentProps } from "@tanstack/react-router";
 import { invoke } from "@tauri-apps/api/core";
 import { emit } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -27,21 +27,23 @@ import {
   ChevronDown,
   Cookie,
   Dot,
+  FolderOpen,
   Loader,
   Maximize,
   Minus,
   PlusCircle,
+  RefreshCcw,
+  SendIcon,
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { parse, stringify } from "smol-toml";
 import { toast } from "sonner";
+import { AlertCircle } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   component: Index,
-  errorComponent: (err) => (
-    <div className="text-black">Exception: {err.error.message}</div>
-  ),
+  errorComponent: (err) => <ErrorState error={err} reset={err.reset} />,
 });
 
 const code = `
@@ -112,9 +114,16 @@ function Index() {
 
         const toml = stringify(formatted_toml);
 
+        let variables = {
+          BASE_URL: "https://jsonplaceholder.typicode.com/todos/1",
+        };
+
         const request = (await invoke("cmd_http_request", {
           toml_schema: toml,
+          default_variables: JSON.stringify(variables),
         })) as Response;
+
+        console.log("request", request);
 
         return Promise.resolve(request);
       } catch (error: any) {
@@ -187,19 +196,21 @@ function Index() {
 
   useEffect(() => {
     if (data) {
-      console.log("data", data);
-
       const response = data.text_response;
-      if (!isJsonStr(response)) {
+      const contentType = data.content_type;
+
+      console.log("contentType", contentType);
+
+      if (isJsonStr(response)) {
         return setResponse({
-          code: response as string,
-          lang: "text",
+          code: JSON.parse(response as string),
+          lang: "json",
         });
       }
 
       setResponse({
-        code: JSON.parse(response as string),
-        lang: "json",
+        code: response as string,
+        lang: "text",
       });
     }
   }, [data]);
@@ -275,11 +286,13 @@ function Index() {
             <RequestUI
               data={data}
               theme={theme}
+              mutate={mutate}
               setToml={setToml}
               response={response}
               tomlCode={tomlCode}
               isPending={isPending}
               editorView={editorView}
+              disableSend={disableSend}
             />
           )}
         </section>
@@ -349,19 +362,23 @@ const IntroUi = () => {
 };
 
 const RequestUI = ({
-  editorView,
-  tomlCode,
-  isPending,
-  theme,
   data,
+  theme,
+  mutate,
   setToml,
   response,
+  tomlCode,
+  isPending,
+  editorView,
+  disableSend,
 }: {
   data: any;
+  disableSend: boolean;
   response: any;
+  theme: string;
   isPending: boolean;
   editorView: any;
-  theme: string;
+  mutate: () => void;
   tomlCode: string;
   setToml: (val: string) => void;
 }) => {
@@ -372,48 +389,13 @@ const RequestUI = ({
         onClick={() => editorView.current?.focus()}
       >
         <div className=" w-full h-[28px] flex">
-          {/* <Button
+          <Button
             size="icon"
             className="ml-auto h-7 disabled:bg-neutral-400"
             disabled={disableSend || isPending}
             onClick={() => mutate()}
           >
             <SendIcon />
-          </Button> */}
-          <Button
-            size="default"
-            className="ml-auto h-7 disabled:bg-neutral-400"
-            onClick={async () => {
-              try {
-                const parsed = parse(tomlCode) as any;
-
-                const formatted_toml = formatTOMl(parsed as any);
-
-                const toml = stringify(formatted_toml);
-
-                let variables = {
-                  BASE_URL: "https://jsonplaceholder.typicode.com/todos/1",
-                };
-
-                const request = (await invoke("cmd_http_request", {
-                  toml_schema: toml,
-                  default_variables: JSON.stringify(variables),
-                })) as Response;
-
-                console.log("request", request);
-              } catch (error) {
-                console.log(error);
-              }
-            }}
-          >
-            Register event
-          </Button>
-          <Button
-            size="default"
-            className="ml-auto h-7 disabled:bg-neutral-400"
-            onClick={() => emit("cancel_request", "/path/to/file")}
-          >
-            Ping event
           </Button>
         </div>
 
@@ -444,7 +426,9 @@ const RequestUI = ({
             </div>
           </div>
         )}
-        {!isPending && (
+
+        {/* After the request has resolved. */}
+        {!isPending && data && (
           // TODO refactor to use different response viewers
           <JsonViewer
             code={response.code}
@@ -454,13 +438,79 @@ const RequestUI = ({
             }}
           />
         )}
+
+        {/* When there is no active request */}
+        {!isPending && !data && <EmptyState />}
+
+        {/* When there is an active request */}
         {isPending && (
-          <div className="flex flex-col items-center gap-y-2 mt-[60px]">
-            <Loader className="animate-spin " />
-            <span className="text-neutral-500">Please wait...</span>
-          </div>
+          <>
+            <div className="absolute font-poppins text-base top-0 flex items-center w-[calc(100%-15px)] mt-1 rounded-sm ">
+              <div className="ml-auto border">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className=" size-7"
+                  onClick={() => emit("cancel_request", "null")}
+                >
+                  <X className="h-4" />
+                  <span className="sr-only">Cancel request</span>
+                </Button>
+              </div>
+            </div>
+            <div className="flex flex-col items-center gap-y-2 mt-[60px]">
+              <Loader className="animate-spin " />
+              <span className="text-neutral-500">Please wait...</span>
+            </div>
+          </>
         )}
       </div>
     </div>
   );
 };
+
+function EmptyState() {
+  return (
+    <div className="flex flex-col items-center gap-y-2 mt-[60px]">
+      <div className="p-4 rounded-full bg-muted">
+        <FolderOpen className="w-8 h-8 text-muted-foreground" />
+      </div>
+      <h3 className="text-lg font-medium">No file selected</h3>
+      <p className="text-sm text-muted-foreground text-center max-w-[300px]">
+        Please select a file from the sidebar to view its contents.
+      </p>
+    </div>
+  );
+}
+
+function ErrorState({
+  error,
+  reset,
+}: {
+  error: ErrorComponentProps;
+  reset: () => void;
+}) {
+  useEffect(() => {
+    if (error) {
+      console.error(error);
+    }
+  }, [error]);
+
+  return (
+    <div className="flex items-center justify-center w-full h-full pt-28">
+      <div className="flex flex-col items-center max-w-md text-center">
+        <div className="flex items-center justify-center w-20 h-20 text-red-600 bg-red-100 rounded-full">
+          <AlertCircle className="w-10 h-10" />
+        </div>
+        <h2 className="mt-6 text-2xl font-semibold">Something went wrong!</h2>
+        <p className="mt-2 text-muted-foreground font-geist">
+          {`Application error: ${error.error.message}` ||
+            "An unexpected error occurred."}
+        </p>
+        <Button onClick={() => reset()} className="mt-6" variant="default">
+          Try again
+        </Button>
+      </div>
+    </div>
+  );
+}
