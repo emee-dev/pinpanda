@@ -1,12 +1,17 @@
 pub mod command;
+pub mod demo;
 pub mod http_runner;
 pub mod utils;
 
 use anyhow::{Context, Result as AnyResult};
 use clap::Parser;
+use clap_derive::Subcommand;
+use demo::{create_collection, get_demo_collection};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::env::{current_dir, set_current_dir};
-use std::fs;
+use std::fs::{self, File};
+use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -45,8 +50,19 @@ struct Args {
     /// Root directory containing `"panda.config.json"` (defaults to app directory if not provided)
     #[arg(required = false)]
     path: Option<PathBuf>,
+
+    #[command(subcommand)]
+    cmd: Option<Commands>,
 }
 
+#[derive(Subcommand, Debug, Clone)]
+enum Commands {
+    /// Initializes a new project with the given name.
+    Init {
+        /// Name of the project to initialize.
+        project_name: String,
+    },
+}
 #[tauri::command]
 async fn cmd_get_app_state(state: State<'_, Mutex<AppData>>) -> Result<AppData, String> {
     let state = state.lock().unwrap();
@@ -146,6 +162,38 @@ fn cmd_get_collections<R: Runtime>(
 pub async fn run() {
     let args = Args::parse();
 
+    if let Some(command) = args.cmd {
+        match command {
+            Commands::Init { project_name } => {
+                let collection = get_demo_collection();
+
+                let base_path = Path::new(".");
+                create_collection(&collection, base_path);
+
+                // Use `serde_json::json!` to create structured JSON and format it with `to_string_pretty`
+                let panda_config = serde_json::to_string_pretty(&json!({
+                    "name": project_name,
+                    "version": "v0.0.1",
+                    "collection": "./collection"
+                }))
+                .expect("Failed to serialize config");
+
+                let mut config_file =
+                    File::create("panda.config.json").expect("Failed to create config file");
+                config_file
+                    .write_all(panda_config.as_bytes())
+                    .expect("Failed to write config file");
+
+                println!(
+                    "Successfully initialized the project: {:?} 🎉",
+                    project_name
+                );
+
+                return;
+            }
+        };
+    }
+
     let builder = Builder::default()
         .setup(|app| {
             #[cfg(desktop)]
@@ -165,9 +213,13 @@ pub async fn run() {
         ]);
 
     let builder = if let Some(path) = args.path {
+        if !path.is_dir() {
+            panic!("Project root directory is required! {:?}", path)
+        };
+
         let cli_path = path.to_str().unwrap();
         let root = Path::new(cli_path);
-        set_current_dir(&root).unwrap();
+        set_current_dir(&root).expect(format!("Invalid project root: {:?}", &root).as_str());
 
         let cwd = current_dir().unwrap();
         let folder = cwd.to_string_lossy().to_string();

@@ -22,6 +22,30 @@ Simply download and execute the installer, available on the [releases](https://g
 
 ---
 
+### 🚀 Demo
+
+After installing the binary, you can scaffold a demo collection for testing purposes.
+
+#### **Step 1: Initialize a Demo Project**
+
+If you're on Windows (or any supported OS), run:
+
+```bash
+# Initialize a new project
+panda init demo-project
+```
+
+#### **Step 2: Launch the Desktop App**
+
+Navigate to the project directory and start the application:
+
+```bash
+# Open the project in the desktop app
+panda .
+```
+
+---
+
 ## Key Features
 
 - **TOML Syntax:** Make HTTP requests using TOML, making it easy to read, write, and version control with Git.
@@ -67,10 +91,20 @@ pnpm install
 ### Run Panda in Development Mode
 
 ```sh
-pnpm tauri dev
+pnpm tauri:dev
 ```
 
 You are now ready to start developing!
+
+---
+
+### Build an executable
+
+Be sure to generate a signing credentials and add to the environment. Read more [Tauri](https://v2.tauri.app/plugin/updater/)
+
+```sh
+pnpm tauri:build
+```
 
 ---
 
