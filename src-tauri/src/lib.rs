@@ -142,59 +142,26 @@ fn cmd_get_collections<R: Runtime>(
     }
 }
 
-// #[tauri::command(rename_all = "snake_case")]
-// async fn send_fake_event<R: Runtime>(
-//     app_handle: AppHandle<R>,
-//     toml_schema: &str,
-//     default_variables: &str,
-// ) -> Result<PandaHttpResponse, String> {
-//     let (cancel_tx, cancel_rx) = tokio::sync::watch::channel(false);
-//     let webview: WebviewWindow<R> = app_handle.get_webview_window("main").unwrap();
-
-//     let temp_event_id = Arc::new(Mutex::new(0));
-//     let temp_event_id_clone = Arc::clone(&temp_event_id);
-
-//     let parsed_variables = variables_to_hashmap(default_variables);
-//     let interpolated_toml = replace_variables(toml_schema, &parsed_variables);
-
-//     webview.listen_any("cancel_request", move |ev| {
-//         if let Err(e) = cancel_tx.send(true) {
-//             println!("Failed to send cancel event for ephemeral request {e:?}");
-//         }
-
-//         let mut lock = temp_event_id.lock().unwrap();
-//         *lock = ev.id();
-
-//         println!("Request is cancelled")
-//     });
-
-//     let schema: TomlRequest = match toml::from_str(interpolated_toml.as_str()) {
-//         Ok(d) => d,
-//         Err(e) => return Err(e.to_string()),
-//     };
-
-//     let res = http_runner::run_single_request(schema, cancel_rx).await;
-
-//     // Try to unlisten after each individual request
-//     webview.unlisten(*temp_event_id_clone.lock().unwrap());
-
-//     res
-// }
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub async fn run() {
     let args = Args::parse();
 
     let builder = Builder::default()
+        .setup(|app| {
+            #[cfg(desktop)]
+            let _ = app
+                .handle()
+                .plugin(tauri_plugin_updater::Builder::new().build());
+
+            Ok(())
+        })
         .plugin(tauri_plugin_cli::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
-            // command::cmd_http_request,
             command::cmd_http_request,
             cmd_get_app_state,
             cmd_get_collections,
-            // send_fake_event
         ]);
 
     let builder = if let Some(path) = args.path {
