@@ -1,7 +1,7 @@
 # Panda - Privacy-Focused, Offline-First API Client
 
 <div align="center">
-  <img src="./public/landing.png" width="600" height="auto" />
+  <img src="https://github.com/emee-dev/pinpanda/blob/main/src-web/public/landing.png" width="600" height="auto" />
 </div>
 
 ## Why Another HTTP Client?
@@ -24,7 +24,7 @@ Simply download and execute the installer, available on the [releases](https://g
 
 ### 🚀 Demo
 
-After installing the binary, you can scaffold a demo collection for testing purposes.
+After installing the binary, you can scaffold a demo collection for testing purposes. Be sure to binary path to your PC environment variables.
 
 #### **Step 1: Initialize a Demo Project**
 
